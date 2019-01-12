@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 import rospy
+import numpy as np
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from scipy.spatial import KDTree
 
 import math
 
-'''
+"""
 This node will publish waypoints from the car's current position to some `x` distance ahead.
 
 As mentioned in the doc, you should ideally first implement a version which does not care
@@ -17,14 +19,13 @@ Once you have created dbw_node, you will update this node to use the status of t
 Please note that our simulator also provides the exact location of traffic lights and their
 current status in `/vehicle/traffic_lights` message. You can use this message to build this node
 as well as to verify your TL classifier.
+"""
 
-TODO (for Yousuf and Aaron): Stopline location for each traffic light.
-'''
-
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 200  # Number of waypoints to publish into /final_waypoints topic.
 
 
 class WaypointUpdater(object):
+
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
@@ -33,20 +34,85 @@ class WaypointUpdater(object):
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
+        self.final_waypoints_pub = rospy.Publisher('/final_waypoints', Lane, queue_size=1)
 
-        self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
+        self.base_waypoints_msg = None
+        self.pose_msg = None
+        self.waypoints_2d = None
+        self.waypoint_tree = None
 
-        # TODO: Add other member variables you need below
+        self.loop()
 
-        rospy.spin()
+    def loop(self):
+        rate = rospy.Rate(50)
+        while not rospy.is_shutdown():
+            if self.pose_msg and self.base_waypoints_msg:
+                closest_wp_index = self.get_closest_waypoint_index()
+                self.publish_waypoints(closest_wp_index)
+            rate.sleep()
+
+    def get_closest_waypoint_index(self):
+        x = self.pose_msg.pose.position.x
+        y = self.pose_msg.pose.position.y
+
+        # The second argument to KDTree::query says that we only want to retrieve one item.
+        # The query will return the position (tuple (x, y)) and its index.
+        # The returned index matches the index of the returned position in the list
+        # used to construct the KDTree. In this case, it is self.waypoints_2d list.
+        cl_wp_idx = self.waypoint_tree.query((x, y), 1)[1]
+
+        cl_wp = self.waypoints_2d[cl_wp_idx]
+        # Highway and Test Lot tracks are circular, so,
+        # it is not a problem to have a -1 for the previous waypoint for cl_wp_idx == 0.
+        prev_wp = self.waypoints_2d[cl_wp_idx - 1]
+
+        # Equation for hyperplane through cl_wp.
+        cl_vect = np.array(cl_wp)
+        prev_vect = np.array(prev_wp)
+        pos_vect = np.array((x, y))
+
+        # Check whether the closest waypoint is ahead or behind the vehicle.
+        # If the closest waypoint is behind the vehicle, choose the next waypoint.
+        # Again, notice that both Highway and Test Lot tracks are circular.
+        val = np.dot(cl_vect - prev_vect, pos_vect - cl_vect)
+        if val > 0:
+            cl_wp_idx = (cl_wp_idx + 1) % len(self.waypoints_2d)
+
+        return cl_wp_idx
+
+    def publish_waypoints(self, cl_wp_idx):
+        """
+        Publishes to /final_waypoints topic.
+        :param cl_wp_idx: index of the vehicle's closest waypoint ahead.
+        :type cl_wp_idx: int
+        """
+        lane = Lane()
+        lane.header = self.base_waypoints_msg.header
+        lane.waypoints = self.base_waypoints_msg.waypoints[cl_wp_idx:(cl_wp_idx+LOOKAHEAD_WPS)]
+        self.final_waypoints_pub.publish(lane)
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        """
+        Callback function for /current_pose topic.
+        :param msg: /current_pose message
+        :type msg: PoseStamped
+        """
+        self.pose_msg = msg
 
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+    def waypoints_cb(self, msg):
+        """
+        Callback function for /base_waypoints topic.
+        :param msg: /base_waypoints message
+        :type msg: Lane
+        """
+        self.base_waypoints_msg = msg
+        # The first time invocation of this callback may take some small time.
+        # However, during the execution of this callback, it can be called second time.
+        # By checking whether it is initialized or not we prevent
+        if not self.waypoints_2d:
+            self.waypoints_2d = [(wp.pose.pose.position.x, wp.pose.pose.position.y)
+                                 for wp in self.base_waypoints_msg.waypoints]
+            self.waypoint_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -56,13 +122,16 @@ class WaypointUpdater(object):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
 
-    def get_waypoint_velocity(self, waypoint):
+    @staticmethod
+    def get_waypoint_velocity(waypoint):
         return waypoint.twist.twist.linear.x
 
-    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
+    @staticmethod
+    def set_waypoint_velocity(waypoints, waypoint, velocity):
         waypoints[waypoint].twist.twist.linear.x = velocity
 
-    def distance(self, waypoints, wp1, wp2):
+    @staticmethod
+    def distance(waypoints, wp1, wp2):
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
         for i in range(wp1, wp2+1):
