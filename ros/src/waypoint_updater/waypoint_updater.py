@@ -2,6 +2,7 @@
 
 import rospy
 import numpy as np
+from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 from scipy.spatial import KDTree
@@ -23,6 +24,7 @@ as well as to verify your TL classifier.
 
 LOOKAHEAD_WPS = 200  # Number of waypoints to publish into /final_waypoints topic.
 
+MAX_DECEL = 1.0
 
 class WaypointUpdater(object):
 
@@ -31,8 +33,9 @@ class WaypointUpdater(object):
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        # TODO: Add a subscriber for /obstacle_waypoint below
 
         self.final_waypoints_pub = rospy.Publisher('/final_waypoints', Lane, queue_size=1)
 
@@ -40,6 +43,7 @@ class WaypointUpdater(object):
         self.pose_msg = None
         self.waypoints_2d = None
         self.waypoint_tree = None
+        self.stopline_wp_idx = -1
 
         self.loop()
 
@@ -47,8 +51,7 @@ class WaypointUpdater(object):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
             if self.pose_msg and self.base_waypoints_msg:
-                closest_wp_index = self.get_closest_waypoint_index()
-                self.publish_waypoints(closest_wp_index)
+                self.publish_waypoints()
             rate.sleep()
 
     def get_closest_waypoint_index(self):
@@ -80,20 +83,50 @@ class WaypointUpdater(object):
 
         return cl_wp_idx
 
-    def publish_waypoints(self, cl_wp_idx):
+    def publish_waypoints(self):
         """
         Publishes to /final_waypoints topic.
-        :param cl_wp_idx: index of the vehicle's closest waypoint ahead.
-        :type cl_wp_idx: int
         """
+        final_lane = self.generate_lane()
+        self.final_waypoints_pub.publish(final_lane)
+
+    def generate_lane(self):
         lane = Lane()
-        lane.header = self.base_waypoints_msg.header
-        lane.waypoints = self.base_waypoints_msg.waypoints[cl_wp_idx:(cl_wp_idx+LOOKAHEAD_WPS)]
-        self.final_waypoints_pub.publish(lane)
+
+        closest_idx = self.get_closest_waypoint_index()
+        farthest_idx = closest_idx+ LOOKAHEAD_WPS
+        base_waypoints = self.base_waypoints_msg.waypoints[closest_idx:farthest_idx]
+
+        if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
+            lane.waypoints = base_waypoints
+        else:
+            lane.waypoints = self.decelerate_waypoints(base_waypoints, closest_idx)
+
+        return lane
+
+    def decelerate_waypoints(self, waypoints, closest_idx):
+        temp = []
+
+        for i, wp in enumerate(waypoints):
+            p = Waypoint()
+            p.pose = wp.pose
+
+            # We subtract 2 below to stop front of the car in front of the stop line.
+            # Otherwise, the stop lane will be at the center of the car.
+            stop_idx = max(self.stopline_wp_idx - closest_idx - 2, 0)
+            dist = self.distance(waypoints, i, stop_idx)
+            vel = math.sqrt(2 * MAX_DECEL * dist)
+            if vel < 1.0:
+                vel = 0.0
+
+            p.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+            temp.append(p)
+
+        return temp
 
     def pose_cb(self, msg):
         """
-        Callback function for /current_pose topic.
+        Callback function for /current_pose topic subscriber.
         :param msg: /current_pose message
         :type msg: PoseStamped
         """
@@ -101,22 +134,23 @@ class WaypointUpdater(object):
 
     def waypoints_cb(self, msg):
         """
-        Callback function for /base_waypoints topic.
+        Callback function for /base_waypoints topic subscriber.
         :param msg: /base_waypoints message
         :type msg: Lane
         """
         self.base_waypoints_msg = msg
-        # The first time invocation of this callback may take some small time.
-        # However, during the execution of this callback, it can be called second time.
-        # By checking whether it is initialized or not we prevent
         if not self.waypoints_2d:
             self.waypoints_2d = [(wp.pose.pose.position.x, wp.pose.pose.position.y)
                                  for wp in self.base_waypoints_msg.waypoints]
             self.waypoint_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        """
+        Callback function for /traffic_waypoint topic subscriber.
+        :param msg: /traffic_waypoint message
+        :type msg: Int32
+        """
+        self.stopline_wp_idx = msg.data
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
