@@ -50,7 +50,7 @@ class WaypointUpdater(object):
     def loop(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            if self.pose_msg and self.base_waypoints_msg:
+            if not (None in (self.pose_msg, self.base_waypoints_msg, self.waypoints_2d, self.waypoint_tree)):
                 self.publish_waypoints()
             rate.sleep()
 
@@ -94,7 +94,7 @@ class WaypointUpdater(object):
         lane = Lane()
 
         closest_idx = self.get_closest_waypoint_index()
-        farthest_idx = closest_idx+ LOOKAHEAD_WPS
+        farthest_idx = closest_idx + LOOKAHEAD_WPS
         base_waypoints = self.base_waypoints_msg.waypoints[closest_idx:farthest_idx]
 
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
@@ -139,7 +139,7 @@ class WaypointUpdater(object):
         :type msg: Lane
         """
         self.base_waypoints_msg = msg
-        if not self.waypoints_2d:
+        if self.waypoints_2d is None:
             self.waypoints_2d = [(wp.pose.pose.position.x, wp.pose.pose.position.y)
                                  for wp in self.base_waypoints_msg.waypoints]
             self.waypoint_tree = KDTree(self.waypoints_2d)

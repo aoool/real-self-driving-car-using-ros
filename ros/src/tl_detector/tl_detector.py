@@ -40,7 +40,7 @@ class TLDetector(object):
         rospy.Subscriber('/image_color', Image, self.image_cb)
 
         config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.load(config_string)
+        self.config = yaml.safe_load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
@@ -71,7 +71,7 @@ class TLDetector(object):
         :type msg: Lane
         """
         self.waypoints_msg = msg
-        if not self.waypoints_2d:
+        if self.waypoints_2d is None:
             self.waypoints_2d = [(wp.pose.pose.position.x, wp.pose.pose.position.y)
                                  for wp in self.waypoints_msg.waypoints]
             self.waypoint_tree = KDTree(self.waypoints_2d)
@@ -163,7 +163,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection.
         stop_line_positions = self.config['stop_line_positions']
 
-        if self.pose_msg is not None:
+        if not (None in (self.pose_msg, self.waypoints_msg, self.waypoint_tree)):
             car_wp_idx = self.get_closest_waypoint(self.pose_msg.pose.position.x,
                                                    self.pose_msg.pose.position.y)
 
@@ -179,7 +179,7 @@ class TLDetector(object):
                     closest_light = light
                     line_wp_idx = temp_wp_idx
 
-        if closest_light:
+        if not (None in (closest_light, line_wp_idx)):
             state = self.get_light_state(closest_light)
             return line_wp_idx, state
 

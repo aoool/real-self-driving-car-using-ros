@@ -98,8 +98,8 @@ public:
     , initial_velocity_(5.0)
     , lookahead_distance_calc_ratio_(2.0)
     , minimum_lookahead_distance_(6.0)
-    , displacement_threshold_(0.2)
-    , relative_angle_threshold_(5.)
+    , displacement_threshold_(0.05)   // value in original implementation: 0.2
+    , relative_angle_threshold_(0.5) // value in original implementation: 5.0
     , waypoint_set_(false)
     , pose_set_(false)
     , velocity_set_(false)

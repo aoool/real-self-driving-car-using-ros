@@ -4,7 +4,6 @@ import rospy
 from std_msgs.msg import Bool
 from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped
-import math
 
 from twist_controller import Controller
 
@@ -31,7 +30,9 @@ that we have created in the `__init__` function.
 
 '''
 
+
 class DBWNode(object):
+
     def __init__(self):
         rospy.init_node('dbw_node')
 
@@ -79,12 +80,9 @@ class DBWNode(object):
     def loop(self):
         rate = rospy.Rate(50)  # 50Hz
         while not rospy.is_shutdown():
-            if not (None in (self.current_vel, self.linear_vel, self.angular_vel)):
-                self.throttle, self.brake, self.steering = \
-                    self.controller.control(self.current_vel,
-                                            self.dbw_enabled,
-                                            self.linear_vel,
-                                            self.angular_vel)
+            self.throttle, self.brake, self.steering = \
+                self.controller.control(self.current_vel, self.dbw_enabled,
+                                        self.linear_vel, self.angular_vel)
             if self.dbw_enabled:
                 self.publish(self.throttle, self.brake, self.steering)
             rate.sleep()

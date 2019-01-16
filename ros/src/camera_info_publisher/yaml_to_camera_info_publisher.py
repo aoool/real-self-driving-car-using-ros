@@ -38,7 +38,7 @@ def yaml_to_CameraInfo(calib_yaml):
         data
     """
     # Load data from file
-    calib_data = yaml.load(calib_yaml)
+    calib_data = yaml.safe_load(calib_yaml)
     # Parse
     camera_info_msg = CameraInfo()
     camera_info_msg.width = calib_data["image_width"]
