@@ -22,13 +22,13 @@ class TLClassifier(object):
 
         im, contours, hierarchy = cv2.findContours(red_img,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         red_count = 0
-        for x in range (len(contours)):
-            contourarea = cv2.contourArea(contours[x]) #get area of contour
+        for x,contour in enumerate(contours):
+            contourarea = cv2.contourArea(contour) #get area of contour
             if 5 < contourarea < 700: #Discard contours with a too large area as this may just be noise
-                arclength = cv2.arcLength(contours[x], True)
-                approxcontour = cv2.approxPolyDP(contours[x], 0.01 * arclength, True)
+                arclength = cv2.arcLength(contour, True)
+                approxcontour = cv2.approxPolyDP(contour, 0.01 * arclength, True)
                 #Find the coordinates of the polygon with respect to he camera frame in pixels
-                rect_cordi = cv2.minAreaRect(contours[x])
+                rect_cordi = cv2.minAreaRect(contour)
                 obj_x = int(rect_cordi[0][0])
                 obj_y = int(rect_cordi[0][1])
                 #Check for Square
@@ -62,6 +62,6 @@ class TLClassifier(object):
             return self.simple_opencv_red_color_classifier(image)
         elif(method == "carla"):
             return self.carla_real_data_classifier(image)
-        else:
-            return self.dl_based_classifier(image)
+        
+        return self.dl_based_classifier(image)
         
