@@ -23,7 +23,7 @@ class TLClassifier(object):
         red_count = 0
         for x,contour in enumerate(contours):
             contourarea = cv2.contourArea(contour) #get area of contour
-            if 18 < contourarea < 700: #Discard contours with a too large area as this may just be noise
+            if 18 < contourarea < 900: #Discard contours with a too large area as this may just be noise
                 arclength = cv2.arcLength(contour, True)
                 approxcontour = cv2.approxPolyDP(contour, 0.01 * arclength, True)
                 #Check for Square
