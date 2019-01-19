@@ -1,7 +1,6 @@
 from styx_msgs.msg import TrafficLight
 import cv2
 import numpy as np
-import rospy
 
 class TLClassifier(object):
     def __init__(self):
@@ -27,15 +26,10 @@ class TLClassifier(object):
             if 18 < contourarea < 700: #Discard contours with a too large area as this may just be noise
                 arclength = cv2.arcLength(contour, True)
                 approxcontour = cv2.approxPolyDP(contour, 0.01 * arclength, True)
-                #Find the coordinates of the polygon with respect to he camera frame in pixels
-                rect_cordi = cv2.minAreaRect(contour)
-                obj_x = int(rect_cordi[0][0])
-                obj_y = int(rect_cordi[0][1])
                 #Check for Square
                 if len(approxcontour)>5:
                     red_count += 1
 
-        # rospy.loginfo("red :  %d",red_count)
         if red_count > 0:
             return TrafficLight.RED
 
