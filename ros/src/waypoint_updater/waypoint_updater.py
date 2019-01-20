@@ -111,7 +111,7 @@ class WaypointUpdater(object):
             p = Waypoint()
             p.pose = wp.pose
 
-            # We subtract 2 below to stop front of the car in front of the stop line.
+            # We subtract 4 below to stop front of the car in front of the stop line.
             # Otherwise, the stop lane will be at the center of the car.
             stop_idx = max(self.stopline_wp_idx - closest_idx - 4, 0)
             dist = self.distance(waypoints, i, stop_idx)
