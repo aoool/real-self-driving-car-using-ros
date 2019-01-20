@@ -145,8 +145,7 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image_msg, "bgr8")
 
         #Get classification
-        # takes arguments as image and classification: one of "opencv", "carla", "dl_based"
-        return self.light_classifier.get_classification(cv_image, "opencv")
+        return self.light_classifier.get_classification(cv_image)
 
         # TODO Remove this once classification is available
         #return light.state
