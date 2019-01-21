@@ -32,3 +32,5 @@ RUN mkdir /capstone
 VOLUME ["/capstone"]
 VOLUME ["/root/.ros/log/"]
 WORKDIR /capstone/ros
+
+ENTRYPOINT ["bash", "../entrypoint.sh"]
