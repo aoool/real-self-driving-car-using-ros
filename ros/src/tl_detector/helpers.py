@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 def load_graph(graph_file):
     """Loads a frozen inference graph"""
     graph = tf.Graph()

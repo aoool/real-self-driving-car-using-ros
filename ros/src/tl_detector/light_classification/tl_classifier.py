@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 from helpers import load_graph
 
+import os.path as path
+
 class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
@@ -42,7 +44,8 @@ class TLClassifier(object):
         image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
         
         # Load frozen graph of trained model
-        SSD_INCEPTION_SIM = './models/ssd_inception_v2_alex_sim/frozen_inference_graph.pb'
+	five_up = path.abspath(path.join(__file__, '../../../../..'))
+        SSD_INCEPTION_SIM = path.join(five_up, 'models/ssd_inception_v2_alex_sim/frozen_inference_graph.pb')
         detection_graph = load_graph(SSD_INCEPTION_SIM)
 
         # Get tensors
@@ -67,7 +70,7 @@ class TLClassifier(object):
             scores = np.squeeze(scores)
             classes = np.squeeze(classes)
         
-        for i in boxes:
+        for i in range(len(classes)):
             if classes[i] == 2 and scores[i] > 0.5: # if any red light is found with a confidence more than 50%
                 return TrafficLight.RED
 
@@ -76,7 +79,7 @@ class TLClassifier(object):
     def carla_real_data_classifier(self,image):
         return TrafficLight.UNKNOWN
 
-    def get_classification(self, image, method):
+    def get_classification(self, image, method=None):
         """Determines the color of the traffic light in the image
 
         Args:
