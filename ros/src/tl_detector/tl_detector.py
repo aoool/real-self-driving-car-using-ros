@@ -14,7 +14,6 @@ import yaml
 
 STATE_COUNT_THRESHOLD = 3
 
-
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
@@ -146,7 +145,7 @@ class TLDetector(object):
 
         #Get classification
         # takes arguments as image and classification: one of "opencv", "carla", "dl_based"
-        return self.light_classifier.get_classification(cv_image, "opencv")
+        return self.light_classifier.get_classification(cv_image)
 
         # TODO Remove this once classification is available
         #return light.state
