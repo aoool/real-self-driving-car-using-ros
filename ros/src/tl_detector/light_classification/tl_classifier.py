@@ -7,10 +7,25 @@ from helpers import load_graph
 
 import os.path as path
 
+# Load frozen graph of trained model
+five_up = path.abspath(path.join(__file__, '../../../../..'))
+SSD_INCEPTION_SIM = path.join(five_up, 'models/ssd_inception_v2_alex_sim/frozen_inference_graph.pb')
+detection_graph = load_graph(SSD_INCEPTION_SIM)
+
+# Get tensors
+# Input placeholder for the image
+image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
+# Each box represents a part of the image where a particular object was detected
+detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
+# Each score represent the level of confidence for each of the objects
+detection_scores = detection_graph.get_tensor_by_name('detection_scores:0')
+# The classification of the object (integer id)
+detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
+
 class TLClassifier(object):
     def __init__(self):
-        #TODO load classifier
-        pass
+	tf.reset_default_graph()
+	self.sess = tf.Session(graph=detection_graph)
 
     def simple_opencv_red_color_classifier(self,image):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -42,37 +57,19 @@ class TLClassifier(object):
 
     def dl_based_classifier(self, image):
         image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
-        
-        # Load frozen graph of trained model
-	five_up = path.abspath(path.join(__file__, '../../../../..'))
-        SSD_INCEPTION_SIM = path.join(five_up, 'models/ssd_inception_v2_alex_sim/frozen_inference_graph.pb')
-        detection_graph = load_graph(SSD_INCEPTION_SIM)
+                     
+        # Actual detection
+        (boxes, scores, classes) = self.sess.run([detection_boxes, detection_scores, detection_classes], feed_dict={image_tensor: image_np})
 
-        # Get tensors
-        # Input placeholder for the image
-        image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-        # Each box represents a part of the image where a particular object was detected
-        detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
-        # Each score represent the level of confidence for each of the objects
-        detection_scores = detection_graph.get_tensor_by_name('detection_scores:0')
-        # The classification of the object (integer id)
-        detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
-
-        tf.reset_default_graph()
-       
-        with tf.Session(graph=detection_graph) as sess:                
-            # Actual detection
-            (boxes, scores, classes) = sess.run([detection_boxes, detection_scores, detection_classes], 
-                                                feed_dict={image_tensor: image_np})
-
-            # Remove unnecessary dimensions
-            boxes = np.squeeze(boxes)
-            scores = np.squeeze(scores)
-            classes = np.squeeze(classes)
+        # Remove unnecessary dimensions
+        scores = np.squeeze(scores)
+        classes = np.squeeze(classes)
         
         for i in range(len(classes)):
-            if classes[i] == 2 and scores[i] > 0.5: # if any red light is found with a confidence more than 50%
-                return TrafficLight.RED
+		print('class=', classes[i])
+		print('score=', scores[i])
+            	if classes[i] == 2 and scores[i] > 0.5: # if red light with confidence more than 50%
+                	return TrafficLight.RED
 
         return TrafficLight.UNKNOWN
     

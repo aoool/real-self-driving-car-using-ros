@@ -9,4 +9,5 @@ def load_graph(graph_file):
             serialized_graph = fid.read()
             od_graph_def.ParseFromString(serialized_graph)
             tf.import_graph_def(od_graph_def, name='')
+
     return graph
