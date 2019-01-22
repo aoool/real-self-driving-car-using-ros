@@ -12,7 +12,9 @@ import tf
 import cv2
 import yaml
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD_STOP = 1
+STATE_COUNT_THRESHOLD_DRIVE = 3
+STATE_COUNT_THRESHOLD = None
 
 class TLDetector(object):
     def __init__(self):
@@ -92,6 +94,13 @@ class TLDetector(object):
         :param msg: image from car-mounted camera
         :type msg: Image
         """
+        if self.last_state == TrafficLight.RED:
+            # if stopped, start driving only after detecting consistent non-red
+            STATE_COUNT_THRESHOLD = STATE_COUNT_THRESHOLD_DRIVE
+	else:	
+            # Stop on detecting a single instance of red
+            STATE_COUNT_THRESHOLD = STATE_COUNT_THRESHOLD_STOP
+
         self.has_image = True
         self.camera_image_msg = msg
         light_wp, state = self.process_traffic_lights()

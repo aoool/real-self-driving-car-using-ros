@@ -5,11 +5,16 @@ import numpy as np
 import tensorflow as tf
 from helpers import load_graph
 
+import rospkg
 import os.path as path
 
 # Model path
-five_up = path.abspath(path.join(__file__, '../../../../..'))
-SSD_INCEPTION_SIM = path.join(five_up, 'models/ssd_inception_v2_alex_sim/frozen_inference_graph.pb')
+r = rospkg.RosPack()
+base_path = r.get_path('tl_detector')
+SSD_INCEPTION_SIM = path.join(base_path,'light_classification/models/ssd_inception_v2_coco_retrained_sim/frozen_inference_graph.pb')
+
+# Labels dictionary
+labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow',4: 'Unknown'}
 
 class TLClassifier(object):
     def __init__(self):
@@ -17,10 +22,10 @@ class TLClassifier(object):
 	self.detection_graph = load_graph(SSD_INCEPTION_SIM)
 
 	# Get tensors
-	self.image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-	self.detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
-	self.detection_scores = detection_graph.get_tensor_by_name('detection_scores:0')
-	self.detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
+	self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+	self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+	self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+	self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
 
 	# Create session
 	self.sess = tf.Session(graph=self.detection_graph)
@@ -64,9 +69,9 @@ class TLClassifier(object):
         classes = np.squeeze(classes)
         
         for i in range(len(classes)):
-	    print('class =', classes[i])
+	    print('class =', labels_dict[classes[i]])
 	    print('score =', scores[i])
-            if classes[i] == 2 and scores[i] > 0.5: # if red light with confidence more than 50%
+            if (classes[i] == 2 or classes[i] == 3) and scores[i] > 0.1: # if red or yellow light with confidence more than 10%
                 return TrafficLight.RED
 
         return TrafficLight.UNKNOWN
