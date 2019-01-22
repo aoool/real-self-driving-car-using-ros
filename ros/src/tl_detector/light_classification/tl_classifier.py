@@ -5,9 +5,13 @@ from time import time
 import rospy
 
 class TLClassifier(object):
-    def __init__(self):
-        #TODO load classifier
-        pass
+    def __init__(self, is_site, classifier):
+        self.is_site = is_site
+        self.classifier = classifier
+        print "is_site ",self.is_site
+        print " using classifier : ",self.classifier
+        #DO loading of model etc if the classifier is dl based
+        
 
     def simple_opencv_red_color_classifier(self,image):
         start = time()
@@ -40,13 +44,13 @@ class TLClassifier(object):
 
         return TrafficLight.UNKNOWN
 
-    def dl_based_classifier(self,image):
+    def dl_ssd_classifier_carla(self,image):
         return TrafficLight.UNKNOWN
     
-    def carla_real_data_classifier(self,image):
+    def dl_ssd_classifier_sim(self,image):
         return TrafficLight.UNKNOWN
 
-    def get_classification(self, image, method):
+    def get_classification(self, image):
         """Determines the color of the traffic light in the image
 
         Args:
@@ -56,11 +60,19 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        #TODO implement light color prediction
-        if(method == "opencv"):
+        #call classifier for the site - real data
+        if(self.is_site == True):
+            if(self.classifier == "opencv"):
+                return self.simple_opencv_red_color_classifier(image)
+            elif(self.classifier == "dl_ssd"):
+                self.dl_ssd_classifier_carla(image)
+
+        #is_site is flase - call simulation classiier
+        if(self.classifier == "opencv"):
             return self.simple_opencv_red_color_classifier(image)
-        elif(method == "carla"):
-            return self.carla_real_data_classifier(image)
-        
-        return self.dl_based_classifier(image)
+        elif(self.classifier == "dl_ssd"):
+            return self.dl_ssd_classifier_sim(image)
+
+        #Default - use the simple opencv version if nothing is specified
+        return self.simple_opencv_red_color_classifier(image)
         
