@@ -8,8 +8,8 @@ class TLClassifier(object):
     def __init__(self, is_site, classifier):
         self.is_site = is_site
         self.classifier = classifier
-        print "is_site ",self.is_site
-        print " using classifier : ",self.classifier
+        rospy.loginfo("Site : %s, classifier : %s",self.is_site,self.classifier)
+        
         #DO loading of model etc if the classifier is dl based
         
 
@@ -61,7 +61,7 @@ class TLClassifier(object):
 
         """
         #call classifier for the site - real data
-        if(self.is_site == True):
+        if(self.is_site):
             if(self.classifier == "opencv"):
                 return self.simple_opencv_red_color_classifier(image)
             elif(self.classifier == "dl_ssd"):
