@@ -18,17 +18,17 @@ labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow',4: 'Unknown'}
 
 class TLClassifier(object):
     def __init__(self):
-	# Load frozen graph of trained model
-	self.detection_graph = load_graph(SSD_INCEPTION_SIM)
+        # Load frozen graph of trained model
+        self.detection_graph = load_graph(SSD_INCEPTION_SIM)
 
-	# Get tensors
-	self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
-	self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
-	self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
-	self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+        # Get tensors
+        self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+        self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+        self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+        self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
 
-	# Create session
-	self.sess = tf.Session(graph=self.detection_graph)
+        # Create session
+        self.sess = tf.Session(graph=self.detection_graph)
 
     def simple_opencv_red_color_classifier(self,image):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -59,18 +59,18 @@ class TLClassifier(object):
         return TrafficLight.UNKNOWN
 
     def dl_based_classifier(self, image):
-        image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
-                     
+        image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)          
         # Actual detection
         (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes], feed_dict={self.image_tensor: image_np})
 
         # Remove unnecessary dimensions
+	boxes = np.squeeze(boxes)
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
-        
+
         for i in range(len(classes)):
-	    print('class =', labels_dict[classes[i]])
-	    print('score =', scores[i])
+            print('class =', labels_dict[classes[i]])
+            print('score =', scores[i])
             if (classes[i] == 2 or classes[i] == 3) and scores[i] > 0.1: # if red or yellow light with confidence more than 10%
                 return TrafficLight.RED
 
