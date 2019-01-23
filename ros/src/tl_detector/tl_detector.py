@@ -96,10 +96,10 @@ class TLDetector(object):
         :type msg: Image
         """
         if self.last_state == TrafficLight.RED:
-            # if stopped or slowing down, start accelerating only after detecting consistent non-red (yellow being considered red)
+            # High threshold for accelerating
             self.state_count_threshold = STATE_COUNT_THRESHOLD_DRIVE
         else:	
-            # Stop on detecting a single instance of red
+            # Low threshold for stopping
             self.state_count_threshold = STATE_COUNT_THRESHOLD_STOP
 
         self.has_image = True
