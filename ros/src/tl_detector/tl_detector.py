@@ -14,11 +14,12 @@ import yaml
 
 STATE_COUNT_THRESHOLD_STOP = 1
 STATE_COUNT_THRESHOLD_DRIVE = 3
-state_count_threshold = None
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
+        
+        self.state_count_threshold = None
 
         self.pose_msg = None
         self.waypoints_msg = None
@@ -96,10 +97,10 @@ class TLDetector(object):
         """
         if self.last_state == TrafficLight.RED:
             # if stopped or slowing down, start accelerating only after detecting consistent non-red (yellow being considered red)
-            state_count_threshold = STATE_COUNT_THRESHOLD_DRIVE
+            self.state_count_threshold = STATE_COUNT_THRESHOLD_DRIVE
         else:	
             # Stop on detecting a single instance of red
-            state_count_threshold = STATE_COUNT_THRESHOLD_STOP
+            self.state_count_threshold = STATE_COUNT_THRESHOLD_STOP
 
         self.has_image = True
         self.camera_image_msg = msg
@@ -107,14 +108,14 @@ class TLDetector(object):
 
         '''
         Publish upcoming red lights at camera frequency.
-        Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
+        Each predicted state has to occur `state_count_threshold` number
         of times till we start using it. Otherwise the previous stable state is
         used.
         '''
         if self.state != state:
             self.state_count = 0
             self.state = state
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
+        elif self.state_count >= self.state_count_threshold:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
