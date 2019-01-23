@@ -1,6 +1,8 @@
 from styx_msgs.msg import TrafficLight
 import cv2
 import numpy as np
+from time import time
+import rospy
 
 class TLClassifier(object):
     def __init__(self):
@@ -8,6 +10,7 @@ class TLClassifier(object):
         pass
 
     def simple_opencv_red_color_classifier(self,image):
+        start = time()
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         lower_red1 = np.array([0, 100, 100])
@@ -29,7 +32,9 @@ class TLClassifier(object):
                 #Check for Square
                 if len(approxcontour)>5:
                     red_count += 1
-
+        end = time()
+        fps = 1.0 / (end - start)
+        rospy.loginfo("Red count: %d , FPS: %.2f" % (red_count, fps))
         if red_count > 0:
             return TrafficLight.RED
 
