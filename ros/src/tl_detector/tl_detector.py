@@ -17,6 +17,11 @@ STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
+
+        # set log_level=rospy.DEBUG to print useful debug information, such as TLClassifier FPS, to /rosout;
+        # keep this line on top of this method to avoid problems
+        rospy.init_node('tl_detector', log_level=rospy.INFO)
+
         self.pose_msg = None
         self.waypoints_msg = None
         self.waypoints_2d = None
@@ -36,9 +41,6 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
         self.has_image = False
-
-        # set log_level=rospy.DEBUG to print useful debug information, such as TLClassifier FPS, to /rosout
-        rospy.init_node('tl_detector', log_level=rospy.INFO)
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
