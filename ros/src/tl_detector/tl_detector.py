@@ -17,8 +17,6 @@ STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
-        rospy.init_node('tl_detector')
-
         self.pose_msg = None
         self.waypoints_msg = None
         self.waypoints_2d = None
@@ -26,29 +24,11 @@ class TLDetector(object):
         self.camera_image_msg = None
         self.lights = []
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-
-        '''
-        /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
-        helps you acquire an accurate ground truth data source for the traffic light
-        classifier by sending the current color state of all traffic lights in the
-        simulator. When testing on the vehicle, the color state will not be available. You'll need to
-        rely on the position of the light and the camera image to predict it.
-        '''
-        rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        rospy.Subscriber('/image_color', Image, self.image_cb)
-
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.safe_load(config_string)
 
-        self.is_site = self.config['is_site']
-        self.classifier = self.config['classifier']
-
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier(self.is_site,self.classifier)
+        self.light_classifier = TLClassifier.get_instance_of(self.config['classifier'])
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -56,6 +36,24 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
         self.has_image = False
+
+        # set log_level=rospy.DEBUG to print useful debug information, such as TLClassifier FPS, to /rosout
+        rospy.init_node('tl_detector', log_level=rospy.INFO)
+
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+
+
+        # /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
+        # helps you acquire an accurate ground truth data source for the traffic light
+        # classifier by sending the current color state of all traffic lights in the
+        # simulator. When testing on the vehicle, the color state will not be available. You'll need to
+        # rely on the position of the light and the camera image to predict it.
+
+        rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        rospy.Subscriber('/image_color', Image, self.image_cb)
+
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         rospy.spin()
 
@@ -121,13 +119,11 @@ class TLDetector(object):
     def get_closest_waypoint(self, x, y):
         """
         Identifies the closest path waypoint to the given position
-            https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
-        Args:
-            pose (Pose): position to match a waypoint to
-
-        Returns:
-            int: index of the closest waypoint in self.waypoints
-
+        https://en.wikipedia.org/wiki/Closest_pair_of_points_problem.
+        :param pose: position to match a waypoint to
+        :type pose: Pose
+        :return: index of the closest waypoint
+        :rtype: int
         """
         return self.waypoint_tree.query((x, y), 1)[1]
 
@@ -141,17 +137,13 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        if(not self.has_image):
+        if not self.has_image:
             self.prev_light_loc = None
             return False
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image_msg, "bgr8")
 
-        #Get classification -  classification method is set in the startup
-        return self.light_classifier.get_classification(cv_image)
-
-        # TODO Remove this once classification is available
-        #return light.state
+        return self.light_classifier.classify(cv_image)
 
     def process_traffic_lights(self):
         """
