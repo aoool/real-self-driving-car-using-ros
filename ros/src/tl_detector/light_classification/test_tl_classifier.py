@@ -1,6 +1,6 @@
 import rospy
 from unittest import TestCase
-from light_classification.tl_classifier import TLClassifier, OpenCVTrafficLightsClassifier
+from light_classification.tl_classifier import TLClassifier, OpenCVTrafficLightsClassifier, SSDTrafficLightsClassifier
 from roslaunch.parent import ROSLaunchParent
 
 
@@ -24,16 +24,18 @@ class TLClassifierTest(TestCase):
         TLClassifier.INSTANCE = None
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTrafficLightsClassifier)
+        TLClassifier.register_subclass("ssd")(SSDTrafficLightsClassifier)
 
     def tearDown(self):
         TLClassifier.INSTANCE = None
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTrafficLightsClassifier)
+        TLClassifier.register_subclass("ssd")(SSDTrafficLightsClassifier)
 
     def test_get_instance_of(self):
         instance = TLClassifier.get_instance_of("opencv")
         self.assertIsInstance(instance, OpenCVTrafficLightsClassifier)
-        self.assertEqual(1, len(TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS))
+        self.assertEqual(2, len(TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS))
 
     def test_classify(self):
 
@@ -43,6 +45,9 @@ class TLClassifierTest(TestCase):
                 super(MockTLClassifier, self).__init__(self.__class__.__name__)
 
             def _classify(self, image):
+                pass
+
+            def get_state_count_threshold(self, last_state):
                 pass
 
         rospy.init_node('test_tl_classifier', anonymous=True)

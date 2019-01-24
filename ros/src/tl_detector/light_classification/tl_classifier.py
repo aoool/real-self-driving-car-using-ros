@@ -1,8 +1,11 @@
 import rospy
+import rospkg
+import os
 import cv2
 import sys
 import threading
 import numpy as np
+import tensorflow as tf
 from styx_msgs.msg import TrafficLight
 from abc import ABCMeta, abstractmethod
 
@@ -108,6 +111,16 @@ class TLClassifier(object):
         return tl_state
 
     @abstractmethod
+    def get_state_count_threshold(self, last_state):
+        """
+        Returns state count threshold value based on the last state.
+        :param last_state: last traffic lights state
+        :return: threshold value
+        :rtype: int
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def __init__(self, cls_name):
         """
         Constructor is marked as @abstractmethod to force implemnting the __init__ method in subclasses.
@@ -127,6 +140,9 @@ class OpenCVTrafficLightsClassifier(TLClassifier):
     """
     Detects and classifies traffic lights on images with Computer Vision techniques.
     """
+
+    def get_state_count_threshold(self, state):
+        return 3
 
     def _classify(self, image):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -158,3 +174,69 @@ class OpenCVTrafficLightsClassifier(TLClassifier):
 
     def __init__(self):
         super(OpenCVTrafficLightsClassifier, self).__init__(self.__class__.__name__)
+
+
+@TLClassifier.register_subclass("ssd")
+class SSDTrafficLightsClassifier(TLClassifier):
+
+    def get_state_count_threshold(self, last_state):
+        if last_state == TrafficLight.RED:
+            # High threshold for accelerating
+            return 3
+        else:
+            # Low threshold for stopping
+            return 1
+
+    @staticmethod
+    def load_graph(graph_file):
+        """Loads a frozen inference graph"""
+        graph = tf.Graph()
+        with graph.as_default():
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(graph_file, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tf.import_graph_def(od_graph_def, name='')
+
+        return graph
+
+    def _classify(self, image):
+        image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
+        # Actual detection
+        (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
+                                                 feed_dict={self.image_tensor: image_np})
+
+        # Remove unnecessary dimensions
+        boxes = np.squeeze(boxes)
+        scores = np.squeeze(scores)
+        classes = np.squeeze(classes)
+
+        for i in range(len(classes)):
+            rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
+            # if red or yellow light with confidence more than 10%
+            if (classes[i] == 2 or classes[i] == 3) and scores[i] > 0.1:
+                return TrafficLight.RED
+
+        return TrafficLight.UNKNOWN
+
+    def __init__(self):
+        super(SSDTrafficLightsClassifier, self).__init__(self.__class__.__name__)
+
+        # Model path
+        package_root_path = rospkg.RosPack().get_path('tl_detector')
+        model_path = os.path.join(package_root_path, 'models/ssd.pb')
+
+        # Labels dictionary
+        self.labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow', 4: 'Unknown'}
+
+        # Load frozen graph of trained model
+        self.detection_graph = self.load_graph(model_path)
+
+        # Get tensors
+        self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+        self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+        self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+        self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+
+        # Create session
+        self.sess = tf.Session(graph=self.detection_graph)
