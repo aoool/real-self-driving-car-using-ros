@@ -486,8 +486,9 @@ KNOWN_DATASETS = {
 
 class DataPreparer:
 
-    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, balance:bool,
+    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, balance: bool, pick_each: int,
                  input_dir: str, output_dir: str, continue_output_dir: bool, draw_bounding_boxes: bool):
+        self.pick_each = pick_each
         self.dataset = dataset
         self.balance = balance
         self.draw_bounding_boxes = draw_bounding_boxes
@@ -803,6 +804,9 @@ class DataPreparer:
         print("Entries in original dataset:", len(self.original_labels))
         print("Entries in filtered dataset", len(filtered_labels))
 
+        if self.pick_each > 1:
+            filtered_labels = random.sample(filtered_labels, len(filtered_labels) // self.pick_each)
+
         red_counter, yellow_counter, green_counter, nolight_counter = \
             self.process_data(self.transforms, filtered_labels)
 
@@ -876,6 +880,9 @@ Label formats:
                              "(scale image, keeping original image shape); dataset size will x2 in size")
     parser.add_argument('--balance', action='store_true',
                         help="balance dataset, so that there is an equal number of representatives of each class")
+    parser.add_argument('--pick-each', action='store', type=int, default=1, metavar='N',
+                        help="picks each Nth image from the original dataset in accordace wih uniform distribution "
+                             "and ignores other images")
     parser.add_argument('--input-dir', action='store', type=str, required=True, metavar='DIR',
                         help="dataset's root directory")
     parser.add_argument('--output-dir', action='store', type=str, required=True, metavar='DIR',
@@ -892,6 +899,7 @@ Label formats:
                  fliplr=args.fliplr,
                  scale=args.scale,
                  balance=args.balance,
+                 pick_each=args.pick_each,
                  input_dir=args.input_dir,
                  output_dir=args.output_dir,
                  continue_output_dir=args.continue_output_dir,
