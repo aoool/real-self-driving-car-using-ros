@@ -6,6 +6,7 @@ import tensorflow as tf
 from helpers import load_graph
 
 import rospkg
+import rospy
 import os.path as path
 
 # Model path
@@ -69,10 +70,12 @@ class TLClassifier(object):
         classes = np.squeeze(classes)
 
         for i in range(len(classes)):
-            print('class =', labels_dict[classes[i]])
-            print('score =', scores[i])
-            if (classes[i] == 2 or classes[i] == 3) and scores[i] > 0.1: # if red or yellow light with confidence more than 10%
+            rospy.loginfo('Class = %s', labels_dict[classes[i]])
+            rospy.loginfo('Score = %f', scores[i])
+            if classes[i] == 2 and scores[i] > 0.1: # if red light with confidence more than 10%
                 return TrafficLight.RED
+            elif classes[i] == 3 and scores[i] > 0.1: # if yellow light with confidence more than 10%
+                return TrafficLight.YELLOW
 
         return TrafficLight.UNKNOWN
     

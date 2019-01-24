@@ -95,7 +95,7 @@ class TLDetector(object):
         :param msg: image from car-mounted camera
         :type msg: Image
         """
-        if self.last_state == TrafficLight.RED:
+        if self.last_state == TrafficLight.RED or self.last_state == TrafficLight.YELLOW:
             # High threshold for accelerating
             self.state_count_threshold = STATE_COUNT_THRESHOLD_DRIVE
         else:	
@@ -117,7 +117,8 @@ class TLDetector(object):
             self.state = state
         elif self.state_count >= self.state_count_threshold:
             self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
+            if state != TrafficLight.RED and state != TrafficLight.YELLOW:
+                light_wp = -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
