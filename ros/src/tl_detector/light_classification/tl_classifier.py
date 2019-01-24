@@ -141,7 +141,7 @@ class OpenCVTrafficLightsClassifier(TLClassifier):
     Detects and classifies traffic lights on images with Computer Vision techniques.
     """
 
-    def get_state_count_threshold(self, state):
+    def get_state_count_threshold(self, last_state):
         return 3
 
     def _classify(self, image):
@@ -183,9 +183,9 @@ class SSDTrafficLightsClassifier(TLClassifier):
         if last_state == TrafficLight.RED:
             # High threshold for accelerating
             return 3
-        else:
-            # Low threshold for stopping
-            return 1
+
+        # Low threshold for stopping
+        return 1
 
     @staticmethod
     def load_graph(graph_file):
@@ -207,14 +207,13 @@ class SSDTrafficLightsClassifier(TLClassifier):
                                                  feed_dict={self.image_tensor: image_np})
 
         # Remove unnecessary dimensions
-        boxes = np.squeeze(boxes)
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
 
-        for i in range(len(classes)):
+        for i, clazz in enumerate(classes):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
             # if red or yellow light with confidence more than 10%
-            if (classes[i] == 2 or classes[i] == 3) and scores[i] > 0.1:
+            if (clazz == 2 or clazz == 3) and scores[i] > 0.1:
                 return TrafficLight.RED
 
         return TrafficLight.UNKNOWN
