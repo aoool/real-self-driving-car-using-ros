@@ -25,7 +25,7 @@ class TLClassifier(object):
     def register_subclass(cls, cls_id):
         """
         Decorator for TLClassifier subclasses.
-        Adds annotated class to the cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS dictionary.
+        Adds decorated class to the cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS dictionary.
         :param cls_id: string identifier of the classifier
         :return: function object
         """
@@ -37,7 +37,7 @@ class TLClassifier(object):
     @classmethod
     def get_instance_of(cls, classifier_name):
         """
-        This is a factory method for the `tl_classifier` module. It returns an instance of classifier
+        It is a factory method for the `tl_classifier` module. It returns an instance of the classifier
         based on the input argument provided.
         :param classifier_name: name of the classifier
         :type classifier_name: str
@@ -77,7 +77,7 @@ class TLClassifier(object):
     def classify(self, image):
         """
         Determines the color of the traffic light in the image.
-        Prints FPS statistics approximately each second.
+        Prints FPS statistic approximately each second.
 
         :param image: image containing the traffic light
         :type image: np.ndarray
@@ -91,7 +91,7 @@ class TLClassifier(object):
                 self._start_time = rospy.get_time()
                 self._counter = 0
             self._counter += 1
-            # save start time and counter values for processing outside of the syncronized block
+            # save start time and counter values for processing outside of the critical section
             start_t = self._start_time
             counter = self._counter
 
@@ -110,9 +110,9 @@ class TLClassifier(object):
     @abstractmethod
     def __init__(self, cls_name):
         """
-        Constructor is marked as @abstractmethod to force implemnting __init__ method in subclasses.
+        Constructor is marked as @abstractmethod to force implemnting the __init__ method in subclasses.
         Subclasses must invoke their parent constructors.
-        :param cls_name: string identifier of the sub-class.
+        :param cls_name: string identifier of the subclass.
         """
         rospy.loginfo("instantiating %s (available classifiers: %s)",
                       cls_name, str(self.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
@@ -125,7 +125,7 @@ class TLClassifier(object):
 @TLClassifier.register_subclass('opencv')
 class OpenCVTrafficLightsClassifier(TLClassifier):
     """
-    Detects and classifies traffic lights on images with Compute Vision methods.
+    Detects and classifies traffic lights on images with Computer Vision techniques.
     """
 
     def _classify(self, image):

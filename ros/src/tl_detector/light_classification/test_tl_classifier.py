@@ -17,7 +17,7 @@ class TLClassifierTest(TestCase):
     @classmethod
     def tearDownClass(cls):
         """TODO (Sergey Morozov): remove and use rostest or rosunit"""
-        # stor roscore
+        # stop roscore
         cls.ROS_LAUNCH_PARENT.shutdown()
 
     def setUp(self):
