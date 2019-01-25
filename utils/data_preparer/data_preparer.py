@@ -549,7 +549,7 @@ class DataPreparer:
         for box in line_parts[1:]:
             xmin, ymin, xmax, ymax, cls = box.split(',')
             annotations.append({'label': class_map[cls], 'occluded': False,
-                                'x_max': int(xmax), 'xmin': int(xmin), 'y_max': int(ymax), 'ymin': int(ymin)})
+                                'x_max': int(xmax), 'x_min': int(xmin), 'y_max': int(ymax), 'y_min': int(ymin)})
 
         return [{'path': line_parts[0], 'boxes': annotations}]
 
