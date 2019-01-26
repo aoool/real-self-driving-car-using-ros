@@ -213,8 +213,10 @@ class SSDTrafficLightsClassifier(TLClassifier):
         for i, clazz in enumerate(classes):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
             # if red or yellow light with confidence more than 10%
-            if (clazz == 2 or clazz == 3) and scores[i] > 0.1:
+            if clazz == 2 and scores[i] > 0.1:
                 return TrafficLight.RED
+            elif clazz == 3 and scores[i] > 0.1:
+                return TrafficLight.YELLOW
 
         return TrafficLight.UNKNOWN
 
