@@ -267,7 +267,7 @@ class TinyYOLOTrafficLightsClassifier(TLClassifier):
         #image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
         # Actual detection
         print("Input image shape: ",image.shape)
-        target_image = np.resize(image, (416, 416, 3))
+        target_image = np.resize(image, (608, 608, 3))
 	print("Target image shape: ",target_image.shape)
 
 	(boxes, scores, classes) = yolo_eval(self.detection_graph.output, self.anchors, self.num_classes, target_image.shape, score_threshold=0.4, iou_threshold=0.5)
@@ -295,7 +295,7 @@ class TinyYOLOTrafficLightsClassifier(TLClassifier):
         self.anchors = _get_anchors(anchors_path)
 
         # Labels dictionary
-        self.labels_dict = {1: 'Red', 2: 'Yellow', 3: 'Green', 4: 'Unknown'}
+        self.labels_dict = {0: 'Red', 1: 'Yellow', 2: 'Green'}
 
         # Create model and load weights of trained model
         self.detection_graph = self.load_model(model_weights_path, self.num_anchors, self.num_classes) 
