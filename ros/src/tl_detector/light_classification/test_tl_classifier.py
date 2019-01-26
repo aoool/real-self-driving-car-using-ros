@@ -1,6 +1,6 @@
 import rospy
 from unittest import TestCase
-from light_classification.tl_classifier import TLClassifier, OpenCVTrafficLightsClassifier, SSDTrafficLightsClassifier
+from light_classification.tl_classifier import TLClassifier, OpenCVTrafficLightsClassifier, SSDTrafficLightsClassifier, TinyYOLOTrafficLightsClassifier
 from roslaunch.parent import ROSLaunchParent
 
 
@@ -25,12 +25,14 @@ class TLClassifierTest(TestCase):
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTrafficLightsClassifier)
         TLClassifier.register_subclass("ssd")(SSDTrafficLightsClassifier)
+	TLClassifier.register_subclass("tiny-yolo")(TinyYOLOTrafficLightsClassifier)
 
     def tearDown(self):
         TLClassifier.INSTANCE = None
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTrafficLightsClassifier)
         TLClassifier.register_subclass("ssd")(SSDTrafficLightsClassifier)
+        TLClassifier.register_subclass("tiny-yolo")(TinyYOLOTrafficLightsClassifier)
 
     def test_get_instance_of(self):
         instance = TLClassifier.get_instance_of("opencv")
