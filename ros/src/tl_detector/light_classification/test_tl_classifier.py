@@ -2,7 +2,7 @@ import rospy
 from unittest import TestCase
 from light_classification.tl_classifier import TLClassifier
 from light_classification.ssd_tl_classifier import SSDTLClassifier
-from light_classification.yolo_tiny_tl_classifier import YOLOTinyTLClassifier
+from light_classification.yolo.yolo_tiny_tl_classifier import YOLOTinyTLClassifier
 from light_classification.opencv_tl_classifier import OpenCVTLClassifier
 from roslaunch.parent import ROSLaunchParent
 

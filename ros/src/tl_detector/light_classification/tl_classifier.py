@@ -78,7 +78,7 @@ class TLClassifier(object):
         Determines the color of the traffic light in the image.
         Prints FPS statistic approximately each second.
 
-        :param image: image containing the traffic light
+        :param image: image containing the traffic light; image is in BGR8 encoding!
         :type image: np.ndarray
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
         :rtype: int
