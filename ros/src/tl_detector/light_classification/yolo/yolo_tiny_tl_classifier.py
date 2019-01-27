@@ -48,11 +48,19 @@ class YOLOTinyTLClassifier(TLClassifier):
             out_scores = out_scores.flatten()
             out_classes = out_classes.flatten()
 
-            rospy.logdebug("Classes-Scores: %s",
+            if out_scores.size > 0:
+                clazz = out_classes[np.argmax(out_scores)]
+                traffic_light = self.class_tl_map[clazz]
+                traffic_light_name = self.class_classname_map[clazz]
+            else:
+                traffic_light = TrafficLight.UNKNOWN
+                traffic_light_name = "unknown"
+
+            rospy.logdebug("TL: %s; Classes-Scores: %s", traffic_light_name,
                            str([(self.class_classname_map[int(out_classes[i])], float(out_scores[i]))
                                 for i in range(out_classes.size)]))
 
-            return TrafficLight.UNKNOWN
+            return traffic_light
 
     @staticmethod
     def _get_anchors(anchors_path):
