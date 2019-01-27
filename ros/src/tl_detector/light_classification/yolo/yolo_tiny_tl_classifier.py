@@ -32,35 +32,29 @@ class YOLOTinyTLClassifier(TLClassifier):
 						   self.anchors, self.num_classes, self.image_shape,
 						   score_threshold=self.score_threshold, iou_threshold=self.iou_threshold)
 
-		out_boxes, out_scores, out_classes = K.get_session().run([boxes, scores, classes],
+		out_boxes, out_scores, out_classes = self.sess.run([boxes, scores, classes],
 								   feed_dict={
 								       self.yolo_model.input: input_image,
 								       self.input_image_shape_tensor: self.image_shape[0:2],
 								       K.learning_phase(): 0
 								   })
 
-                if len(out_classes) > 0:
-                        print("Scores: %s; Classes: %s",
-                                       str(out_scores), str([self.class_classname_map[cl] for cl in out_classes]))
+		# Remove unnecessary dimensions (batch dimension)
+		out_scores = np.squeeze(out_scores)
+		out_classes = np.squeeze(out_classes)
 
-			rospy.logdebug("Scores: %s; Classes: %s",
-				       str(out_scores), str([self.class_classname_map[cl] for cl in out_classes]))
-			# Remove unnecessary dimensions (batch dimension)
-			out_scores = np.squeeze(out_scores)
-			out_classes = np.squeeze(out_classes)
+		assert out_scores.shape == out_classes.shape
+		assert len(out_scores.shape) == 1
 
-			assert out_scores.shape == out_classes.shape
-			#assert len(out_scores.shape) == 1
+		rospy.logdebug("Scores: %s; Classes: %s",
+			       str(out_scores), str([self.class_classname_map[cl] for cl in out_classes]))
 
-			if out_scores.size > 1:
-			    score_ind = np.argmax(out_scores)
-			    clazz = out_classes[score_ind]
-			    return self.class_tl_map[clazz]
-			else:  # to deal with the 0-d numpy array 
-                            clazz = np.asscalar(out_classes)
-			    return self.class_tl_map[clazz]
-      		else:
-			return TrafficLight.UNKNOWN
+		if out_scores.size > 0:
+		    score_ind = np.argmax(out_scores)
+		    clazz = out_classes[score_ind]
+		    return self.class_tl_map[clazz]
+		else:
+		    return TrafficLight.UNKNOWN
 
     @staticmethod
     def _get_anchors(anchors_path):
@@ -203,7 +197,6 @@ class YOLOTinyTLClassifier(TLClassifier):
         # Create model and load weights of trained model
         self.yolo_model = self._load_model(model_weights_path, self.num_anchors, self.num_classes)
         self.input_image_shape_tensor = K.placeholder(shape=(2,))
-
         self.boxes_tensor, self.scores_tensor, self.classes_tensor = \
             yolo_eval(self.yolo_model.output, self.anchors,
                       self.num_classes, self.input_image_shape_tensor,
