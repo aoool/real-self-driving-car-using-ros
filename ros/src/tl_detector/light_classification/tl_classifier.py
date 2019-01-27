@@ -1,7 +1,6 @@
 import rospy
-import sys
-import threading
 import numpy as np
+import collections
 
 from abc import ABCMeta, abstractmethod
 
@@ -83,26 +82,14 @@ class TLClassifier(object):
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
         :rtype: int
         """
-        # calculate FPS based on the number of images processed per second;
-        # ensure that self._counter value does not go over integer limits
-        with self._lock:
-            if self._start_time is None or self._counter > (sys.maxint - 100):
-                self._start_time = rospy.get_time()
-                self._counter = 0
-            self._counter += 1
-            # save start time and counter values for processing outside of the critical section
-            start_t = self._start_time
-            counter = self._counter
+        # append the start time to the circular buffer
+        self._start_time_circular_buffer.append(rospy.get_time())
 
         tl_state = self._classify(image)
 
         # log the FPS no faster than once per second
-        diff_t =  rospy.get_time() - start_t
-        fps = None
-        if diff_t >= 1.0:
-            fps = int(counter / diff_t)
-        if fps is not None:  # do not log while there are only a few images processed
-            rospy.logdebug_throttle(1.0, "FPS: %d" % fps)
+        fps = len(self._start_time_circular_buffer) / (rospy.get_time() - self._start_time_circular_buffer[0])
+        rospy.logdebug_throttle(1.0, "FPS: %.3f" % fps)
 
         return tl_state
 
@@ -119,13 +106,16 @@ class TLClassifier(object):
     @abstractmethod
     def __init__(self, cls_name):
         """
-        Constructor is marked as @abstractmethod to force implemnting the __init__ method in subclasses.
+        Constructor is marked as @abstractmethod to force implementing the __init__ method in subclasses.
         Subclasses must invoke their parent constructors.
         :param cls_name: string identifier of the subclass.
         """
         rospy.loginfo("instantiating %s (available classifiers: %s)",
                       cls_name, str(self.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
 
-        self._lock = threading.Lock()  # lock to be used in TLClassifier.classify to increment invocation counter
-        self._counter = 0
-        self._start_time = None
+        # circular buffer for storing start time of classifications
+        # addition to/from beginning/end is O(1); thread safe
+        # used to calculate FPS (moving average)
+        # Once a bounded length deque is full, when new items are added,
+        # a corresponding number of items are discarded from the opposite end.
+        self._start_time_circular_buffer = collections.deque(maxlen=100)

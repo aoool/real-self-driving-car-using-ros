@@ -18,10 +18,13 @@ class YOLOTinyTLClassifier(TLClassifier):
 
     def get_state_count_threshold(self, last_state):
         if last_state == TrafficLight.RED:
-            # High threshold for accelerating
-            return 3
+            # High threshold for switching from RED state
+            return 4
+        elif last_state == TrafficLight.YELLOW:
+            # in its current state the model is not very good at handling yellow traffic lights
+            return 2
 
-        # Low threshold for stopping
+        # for switching from GREED and UNKNOWN the threshold is low; slow and steady wins the race
         return 1
 
     def _classify(self, image):
@@ -30,12 +33,12 @@ class YOLOTinyTLClassifier(TLClassifier):
 
         with K.get_session().graph.as_default():
 
-            boxes, scores, classes = yolo_eval(self.yolo_model.output,
-                                               self.anchors, self.num_classes, self.image_shape[0:2],
-                                               score_threshold=self.score_threshold, iou_threshold=self.iou_threshold)
+            boxes_tensor, scores_tensor, classes_tensor = \
+                yolo_eval(self.yolo_model.output, self.anchors, self.num_classes, self.image_shape[0:2],
+                          score_threshold=self.score_threshold, iou_threshold=self.iou_threshold)
 
             out_boxes, out_scores, out_classes = \
-                K.get_session().run([boxes, scores, classes],
+                K.get_session().run([boxes_tensor, scores_tensor, classes_tensor],
                                     feed_dict={
                                         self.yolo_model.input: input_image,
                                         self.input_image_shape_tensor: orig_image_shape[0:2],
@@ -162,6 +165,16 @@ class YOLOTinyTLClassifier(TLClassifier):
 
     @staticmethod
     def _load_model(model_path, num_anchors, num_classes):
+        """
+        Load model from *.h5 file.
+        :param model_path: path to the model checkpoint
+        :type model_path: str
+        :param num_anchors: number of anchors
+        :type num_anchors: int
+        :param num_classes: number of classes
+        :type num_classes: int
+        :return: YOLOv3-tiny model
+        """
         try:
             yolo_model = load_model(model_path, compile=False)
         except:
@@ -180,8 +193,8 @@ class YOLOTinyTLClassifier(TLClassifier):
 
         self.image_shape = (608, 608, 3)
         self.padding_color = (128, 128, 128)
-        self.score_threshold = 0.3
-        self.iou_threshold = 0.5
+        self.score_threshold = 0.1
+        self.iou_threshold = 0.2
 
         # Model path
         package_root_path = rospkg.RosPack().get_path('tl_detector')
