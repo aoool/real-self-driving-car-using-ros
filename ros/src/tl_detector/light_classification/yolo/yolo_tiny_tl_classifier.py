@@ -42,22 +42,17 @@ class YOLOTinyTLClassifier(TLClassifier):
                                         K.learning_phase(): 0,
                                     })
 
-            # Remove unnecessary dimensions (batch dimension)
-            out_scores = np.squeeze(out_scores)
-            out_classes = np.squeeze(out_classes)
-
             assert out_scores.shape == out_classes.shape
-            assert len(out_scores.shape) == 1
 
-            rospy.logdebug("Scores: %s; Classes: %s",
-                           str(out_scores), str([self.class_classname_map[cl] for cl in out_classes]))
+            # Remove unnecessary dimensions
+            out_scores = out_scores.flatten()
+            out_classes = out_classes.flatten()
 
-            if out_scores.size > 0:
-                score_ind = np.argmax(out_scores)
-                clazz = out_classes[score_ind]
-                return self.class_tl_map[clazz]
-            else:
-                return TrafficLight.UNKNOWN
+            rospy.logdebug("Classes-Scores: %s",
+                           str([(self.class_classname_map[int(out_classes[i])], float(out_scores[i]))
+                                for i in range(out_classes.size)]))
+
+            return TrafficLight.UNKNOWN
 
     @staticmethod
     def _get_anchors(anchors_path):
