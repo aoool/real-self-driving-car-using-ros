@@ -5,7 +5,9 @@ import rospkg
 
 import numpy as np
 
+from keras.models import load_model
 from keras.layers import Input
+from keras import backend as K
 from light_classification.yolo.model import tiny_yolo_body, yolo_eval
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
@@ -22,37 +24,36 @@ class YOLOTinyTLClassifier(TLClassifier):
         # Low threshold for stopping
         return 1
 
-    @staticmethod
-    def load_model(model_weights, num_anchors, num_classes):
-        """creates the model and loads weights"""
-        yolo_model = tiny_yolo_body(Input(shape=(None, None, 3)), num_anchors // 2, num_classes)
-        yolo_model.load_weights(model_weights)
-        rospy.logdebug("YOLO model created and weights loaded")
-
-        return yolo_model
-
     def _classify(self, image):
-        transformed_image = self._transform_image(image)
+        input_image = self._prepare_input(image)
 
-        # image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
-        # Actual detection
-        print("Input image shape: ", image.shape)
-        target_image = np.resize(image, (608, 608, 3))
-        print("Target image shape: ", target_image.shape)
+        boxes, scores, classes = yolo_eval(self.yolo_model.output,
+                                           self.anchors, self.num_classes, self.image_shape,
+                                           score_threshold=self.score_threshold, iou_threshold=self.iou_threshold)
 
-        (boxes, scores, classes) = yolo_eval(self.detection_graph.output, self.anchors, self.num_classes,
-                                             target_image.shape, score_threshold=0.4, iou_threshold=0.5)
-        # Remove unnecessary dimensions
-        scores = np.squeeze(scores)
-        classes = np.squeeze(classes)
+        out_boxes, out_scores, out_classes = self.sess.run([boxes, scores, classes],
+                                                           feed_dict={
+                                                               self.yolo_model.input: input_image,
+                                                               self.input_image_shape_tensor: self.image_shape[0:2],
+                                                               K.learning_phase(): 0
+                                                           })
 
-        for i, clazz in enumerate(classes):
-            rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
-            # if red or yellow light with confidence more than 10%
-            if (clazz == 1 or clazz == 2) and scores[i] > 0.5:
-                return TrafficLight.RED
+        # Remove unnecessary dimensions (batch dimension)
+        out_scores = np.squeeze(out_scores)
+        out_classes = np.squeeze(out_classes)
 
-        return TrafficLight.UNKNOWN
+        assert out_scores.shape == out_classes.shape
+        assert len(out_scores.shape) == 1
+
+        rospy.logdebug("Scores: %s; Classes: %s",
+                       str(out_scores), str([self.class_classname_map[cl] for cl in out_classes]))
+
+        if out_scores.size > 0:
+            score_ind = np.argmax(out_scores)
+            clazz = out_classes[score_ind]
+            return self.class_tl_map[clazz]
+        else:
+            return TrafficLight.UNKNOWN
 
     @staticmethod
     def _get_anchors(anchors_path):
@@ -70,11 +71,18 @@ class YOLOTinyTLClassifier(TLClassifier):
 
     @staticmethod
     def _get_class_names(labels_path):
+        """
+        Reads YOLO class names, for traffic lights in this case.
+        :param labels_path: path to file containing class names
+        :type labels_path: str
+        :return: list with string class names
+        :rtype list
+        """
         with open(labels_path) as f:
             lines = f.readlines()
         return [line.strip() for line in lines]
 
-    def _transform_image(self, image):
+    def _resize_and_pad(self, image):
         """
         Applies some image transformations to prepare it for feeding to the trained model.
         The same image transformations were applied to images during the training phase.
@@ -120,11 +128,53 @@ class YOLOTinyTLClassifier(TLClassifier):
 
         return image
 
+    @staticmethod
+    def _normalize(image):
+        """
+        Normalize image. Make image array of type float and make values to be in [0.0, 1.0]
+        :param image: input image to normalize
+        :type image: np.ndarray
+        :return: normalized image
+        :rtype np.ndarray
+        """
+        return image.astype(np.float32) / 255.0
+
+    def _prepare_input(self, image):
+        """
+        Apply all the trafsformations to image to make it ready to feed to the YOLO-tiny network.
+        :param image: image that comes to the classifier from the TLDetector
+        :type image: np.ndarray
+        :return: transformed and normalized image as 1 image per batch
+        :rtype np.ndarray
+        """
+        image = self._resize_and_pad(image)
+        image = self._normalize(image)
+
+        # add batch dimension
+        return np.expand_dims(image, 0)
+
+    @staticmethod
+    def _load_model(model_path, num_anchors, num_classes):
+        try:
+            yolo_model = load_model(model_path, compile=False)
+        except:
+            yolo_model = tiny_yolo_body(Input(shape=(None,None,3)), num_anchors//2, num_classes)
+            yolo_model.load_weights(model_path) # make sure model, anchors and classes match
+        else:
+            assert yolo_model.layers[-1].output_shape[-1] == \
+                num_anchors/len(yolo_model.output) * (num_classes + 5), \
+                'Mismatch between model and given anchor and class sizes'
+
+        rospy.loginfo('%s model, anchors, and classes loaded.', model_path)
+        return yolo_model
+
     def __init__(self):
         super(YOLOTinyTLClassifier, self).__init__(self.__class__.__name__)
 
         self.image_shape = (608, 608, 3)
         self.padding_color = (128, 128, 128)
+        self.score_threshold = 0.3
+        self.iou_threshold = 0.5
 
         # Model path
         package_root_path = rospkg.RosPack().get_path('tl_detector')
@@ -139,8 +189,14 @@ class YOLOTinyTLClassifier(TLClassifier):
         # Classes
         labels_path = os.path.join(package_root_path, 'config/traffic_lights_classes.txt')
         self.class_classname_map = {num_id: str_id for num_id, str_id in enumerate(self._get_class_names(labels_path))}
+        self.class_tl_map = {0: TrafficLight.RED, 1: TrafficLight.YELLOW, 2: TrafficLight.GREEN}
         self.num_classes = len(self.class_classname_map.keys())
         assert self.num_classes == 3
 
         # Create model and load weights of trained model
-        self.detection_graph = self.load_model(model_weights_path, self.num_anchors, self.num_classes)
+        self.yolo_model = self._load_model(model_weights_path, self.num_anchors, self.num_classes)
+        self.input_image_shape_tensor = K.placeholder(shape=(2,))
+        self.boxes_tensor, self.scores_tensor, self.classes_tensor = \
+            yolo_eval(self.yolo_model.output, self.anchors,
+                      self.num_classes, self.input_image_shape_tensor,
+                      score_threshold=self.score_threshold, iou_threshold=self.iou_threshold)
