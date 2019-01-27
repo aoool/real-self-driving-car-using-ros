@@ -1,5 +1,4 @@
 import rospy
-import numpy as np
 import collections
 
 from abc import ABCMeta, abstractmethod
@@ -66,7 +65,7 @@ class TLClassifier(object):
         This method should be implemented by a particular type of the traffic light classifier.
 
         :param image: image containing the traffic light
-        :type image: np.ndarray
+        :type image: numpy.ndarray
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
         :rtype: int
         """
@@ -78,7 +77,7 @@ class TLClassifier(object):
         Prints FPS statistic approximately each second.
 
         :param image: image containing the traffic light; image is in BGR8 encoding!
-        :type image: np.ndarray
+        :type image: numpy.ndarray
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
         :rtype: int
         """

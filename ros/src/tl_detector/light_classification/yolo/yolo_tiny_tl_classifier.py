@@ -177,7 +177,7 @@ class YOLOTinyTLClassifier(TLClassifier):
         """
         try:
             yolo_model = load_model(model_path, compile=False)
-        except:
+        except (ImportError, ValueError):
             yolo_model = tiny_yolo_body(Input(shape=(None,None,3)), num_anchors//2, num_classes)
             yolo_model.load_weights(model_path) # make sure model, anchors and classes match
         else:
