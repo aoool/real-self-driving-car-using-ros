@@ -1,3 +1,4 @@
+import cv2
 import os
 import rospy
 import rospkg
@@ -51,12 +52,12 @@ class SSDTLClassifier(TLClassifier):
 
         return TrafficLight.UNKNOWN, None
 
-    def __init__(self, is_debug):
+    def __init__(self, is_debug, model='models/ssd.pb'):
         super(SSDTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
         # Model path
         package_root_path = rospkg.RosPack().get_path('tl_detector')
-        model_path = os.path.join(package_root_path, 'models/ssd.pb')
+        model_path = os.path.join(package_root_path, model)
 
         # Labels dictionary
         self.labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow', 4: 'Unknown'}
@@ -72,3 +73,15 @@ class SSDTLClassifier(TLClassifier):
 
         # Create session
         self.sess = tf.Session(graph=self.detection_graph)
+
+
+@TLClassifier.register_subclass('ssd-sim')
+class SSDSimTLClassifier(SSDTLClassifier):
+
+    def _classify(self, image):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        return super(SSDSimTLClassifier, self)._classify(image)
+
+    def __init__(self, is_debug):
+        super(SSDSimTLClassifier, self).__init__(is_debug, 'models/ssd-sim.pb')
