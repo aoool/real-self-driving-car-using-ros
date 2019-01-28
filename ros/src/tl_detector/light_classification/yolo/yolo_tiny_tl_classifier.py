@@ -18,15 +18,7 @@ from light_classification.tl_classifier import TLClassifier
 class YOLOTinyTLClassifier(TLClassifier):
 
     def get_state_count_threshold(self, last_state):
-        if last_state == TrafficLight.RED:
-            # High threshold for switching from RED state
-            return 4
-        elif last_state == TrafficLight.YELLOW:
-            # in its current state the model is not very good at handling yellow traffic lights
-            return 2
-
-        # for switching from GREED and UNKNOWN the threshold is low; slow and steady wins the race
-        return 1
+        return 3
 
     def _get_debug_image(self, image, out_boxes, out_classes, out_scores):
         """
@@ -67,7 +59,6 @@ class YOLOTinyTLClassifier(TLClassifier):
             else:
                 text_origin = np.array([left, top + 1])
 
-            # My kingdom for a good redistributable image drawing library.
             for i in range(thickness):
                 draw.rectangle(
                     [left + i, top + i, right - i, bottom - i],
@@ -91,7 +82,6 @@ class YOLOTinyTLClassifier(TLClassifier):
                 K.learning_phase(): 0,
             }
 
-            #
             if self.is_debug:
                 out_boxes, out_scores, out_classes = \
                     K.get_session().run([self.boxes_tensor, self.scores_tensor, self.classes_tensor],
