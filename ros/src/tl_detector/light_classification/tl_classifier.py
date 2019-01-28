@@ -1,61 +1,127 @@
-from styx_msgs.msg import TrafficLight
-import cv2
-import numpy as np
+import rospy
+import collections
+
+from abc import ABCMeta, abstractmethod
+
 
 class TLClassifier(object):
-    def __init__(self):
-        #TODO load classifier
-        pass
+    """
+    Base class for traffic light classifiers. The subclasses should provide implementations for the following methods:
+        TLClassifier._classify(self, image)
+        <TLClassifier-Subclass>.__init__(self)
+    Note that <TLClassifier-Subclass>.__init__(self) must invoke its parent constructor
+    and should not have input arguments except self.
+    """
 
-    def simple_opencv_red_color_classifier(self,image):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    __metaclass__ = ABCMeta
 
-        lower_red1 = np.array([0, 100, 100])
-        upper_red1 = np.array([10, 255,255])
-        lower_red2 = np.array([160,100,100])
-        upper_red2 = np.array([179,255,255])
+    INSTANCE = None
+    KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}  # it is not empty; it is filled by TLClassifier.register_subclass decorator
 
-        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        red_img = cv2.addWeighted(mask1,1.0,mask2,1.0,0)
-
-        im, contours, hierarchy = cv2.findContours(red_img,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-        red_count = 0
-        for x,contour in enumerate(contours):
-            contourarea = cv2.contourArea(contour) #get area of contour
-            if 18 < contourarea < 900: #Discard contours with a too large area as this may just be noise
-                arclength = cv2.arcLength(contour, True)
-                approxcontour = cv2.approxPolyDP(contour, 0.01 * arclength, True)
-                #Check for Square
-                if len(approxcontour)>5:
-                    red_count += 1
-
-        if red_count > 0:
-            return TrafficLight.RED
-
-        return TrafficLight.UNKNOWN
-
-    def dl_based_classifier(self,image):
-        return TrafficLight.UNKNOWN
-    
-    def carla_real_data_classifier(self,image):
-        return TrafficLight.UNKNOWN
-
-    def get_classification(self, image, method):
-        """Determines the color of the traffic light in the image
-
-        Args:
-            image (cv::Mat): image containing the traffic light
-
-        Returns:
-            int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
+    @classmethod
+    def register_subclass(cls, cls_id):
         """
-        #TODO implement light color prediction
-        if(method == "opencv"):
-            return self.simple_opencv_red_color_classifier(image)
-        elif(method == "carla"):
-            return self.carla_real_data_classifier(image)
-        
-        return self.dl_based_classifier(image)
-        
+        Decorator for TLClassifier subclasses.
+        Adds decorated class to the cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS dictionary.
+        :param cls_id: string identifier of the classifier
+        :return: function object
+        """
+        def reg_subclass(cls_type):
+            cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS[cls_id] = cls_type
+            return cls_type
+        return reg_subclass
+
+    @classmethod
+    def get_instance_of(cls, classifier_name, is_debug=False):
+        """
+        It is a factory method for the `tl_classifier` module. It returns an instance of the classifier
+        based on the input argument provided.
+        :param classifier_name: name of the classifier
+        :type classifier_name: str
+        :param is_debug: flag indicating that we are running in debug mode
+        :type is_debug: bool
+        :return: instance of the classifier corresponding to the classifier string identifier
+        :rtype: TLClassifier
+        """
+        if cls.INSTANCE is not None \
+                and type(cls.INSTANCE) != cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS[classifier_name]:
+            raise ValueError("cannot instantiate an instance of " + classifier_name
+                             + " classifier since an instance of another type (" + type(cls.INSTANCE).__name__ +
+                             ") has already been instantiated")
+
+        if cls.INSTANCE is not None:
+            return cls.INSTANCE
+
+        classifier_type = cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.get(classifier_name, None)
+        if classifier_type is None:
+            raise ValueError("classifier_name parameter has unknown value: " + classifier_name
+                             + "; the value should be in " + str(cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
+        cls.INSTANCE = classifier_type(is_debug)
+
+        return cls.INSTANCE
+
+    @abstractmethod
+    def _classify(self, image):
+        """
+        Determines the color of the traffic light in the image.
+        This method should be implemented by a particular type of the traffic light classifier.
+
+        :param image: image containing the traffic light
+        :type image: numpy.ndarray
+        :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
+        :rtype: tuple(int, numpy.ndarray)
+        """
+        raise NotImplementedError()
+
+    def classify(self, image):
+        """
+        Determines the color of the traffic light in the image.
+        Prints FPS statistic approximately each second.
+
+        :param image: image containing the traffic light; image is in BGR8 encoding!
+        :type image: numpy.ndarray
+        :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
+        :rtype: tuple(int, numpy.ndarray)
+        """
+        # append the start time to the circular buffer
+        self._start_time_circular_buffer.append(rospy.get_time())
+
+        tl_state, debug_image_or_none = self._classify(image)
+
+        # log the FPS no faster than once per second
+        fps = len(self._start_time_circular_buffer) / (rospy.get_time() - self._start_time_circular_buffer[0])
+        rospy.logdebug_throttle(1.0, "FPS: %.3f" % fps)
+
+        return tl_state, debug_image_or_none
+
+    @abstractmethod
+    def get_state_count_threshold(self, last_state):
+        """
+        Returns state count threshold value based on the last state.
+        :param last_state: last traffic lights state
+        :return: threshold value
+        :rtype: int
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __init__(self, cls_name, is_debug):
+        """
+        Constructor is marked as @abstractmethod to force implementing the __init__ method in subclasses.
+        Subclasses must invoke their parent constructors.
+        :param cls_name: string identifier of the subclass.
+        :type cls_name : str
+        :param is_debug: flag indicating that we are running in debug mode
+        :type is_debug: bool
+        """
+        rospy.loginfo("instantiating %s (available classifiers: %s)",
+                      cls_name, str(self.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
+
+        # circular buffer for storing start time of classifications
+        # addition to/from beginning/end is O(1); thread safe
+        # used to calculate FPS (moving average)
+        # Once a bounded length deque is full, when new items are added,
+        # a corresponding number of items are discarded from the opposite end.
+        self._start_time_circular_buffer = collections.deque(maxlen=100)
+
+        self.is_debug = is_debug

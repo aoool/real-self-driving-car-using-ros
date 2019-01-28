@@ -22,7 +22,7 @@ current status in `/vehicle/traffic_lights` message. You can use this message to
 as well as to verify your TL classifier.
 """
 
-LOOKAHEAD_WPS = 100  # Number of waypoints to publish into /final_waypoints topic.
+LOOKAHEAD_WPS = 200  # Number of waypoints to publish into /final_waypoints topic.
 
 MAX_DECEL = 1.0
 
