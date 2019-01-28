@@ -49,6 +49,10 @@ polygon detection is performed and checked if the the number of sides is more th
 * This is not robust enough, the thresholds need to be adjusted always.
 * Doesnt work properly on real world data as there is lot of noise. 
 
+### Real World (Test Lot) --- YOLOv3-tiny (You Only Look Once)
+We used this approach for real world.
+TODO:write about it
+
 ### Real World (Test Lot) --- SSD (Single Shot Detection)
 We need to solve both object detection - where in the image is the object, 
 and object classification --- given detections on an image, classify traffic lights. 
@@ -58,8 +62,6 @@ For example, SSD (Single Shot Multibox Detection) and YOLO (You Only Look Once).
 
 We attempted transfer learning using the pre-trained SSD_inception_v2 model trained on COCO dataset, 
 and retrain it on our own dataset for NUM_EPOCHS, achieving a final loss of FINAL_LOSS.
-
-@Segey, pls elaborate how you collated the dataset.
 
 Here is a sample of the dataset.
 ![Udacity Test Site training images](report/udacity_visualization.png)

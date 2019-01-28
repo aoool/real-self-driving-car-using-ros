@@ -6,9 +6,9 @@ import rospkg
 import numpy as np
 
 from PIL import Image, ImageFont, ImageDraw
-from keras.models import load_model
-from keras.layers import Input
-from keras import backend as K
+from .keras.models import load_model
+from .keras.layers import Input
+from .keras import backend as K
 from light_classification.yolo.model import tiny_yolo_body, yolo_eval
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
@@ -59,9 +59,9 @@ class YOLOTinyTLClassifier(TLClassifier):
             else:
                 text_origin = np.array([left, top + 1])
 
-            for i in range(thickness):
+            for j in range(thickness):
                 draw.rectangle(
-                    [left + i, top + i, right - i, bottom - i],
+                    [left + j, top + j, right - j, bottom - j],
                     outline=self.class_color_map[c])
             draw.rectangle(
                 [tuple(text_origin), tuple(text_origin + label_size)],
