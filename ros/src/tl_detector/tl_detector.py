@@ -15,9 +15,14 @@ import yaml
 class TLDetector(object):
     def __init__(self):
 
+        config_string = rospy.get_param("/traffic_light_config")
+        self.config = yaml.safe_load(config_string)
+
+        self.is_debug = self.config['is_debug']
+
         # set log_level=rospy.DEBUG to print useful debug information, such as TLClassifier FPS, to /rosout;
-        # keep this line on top of this method to avoid problems
-        rospy.init_node('tl_detector', log_level=rospy.INFO)
+        # keep this line near the top of this method to avoid problems
+        rospy.init_node('tl_detector', log_level=(rospy.DEBUG if self.is_debug else rospy.INFO))
 
         self.pose_msg = None
         self.waypoints_msg = None
@@ -26,11 +31,8 @@ class TLDetector(object):
         self.camera_image_msg = None
         self.lights = []
 
-        config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.safe_load(config_string)
-
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier.get_instance_of(self.config['classifier'])
+        self.light_classifier = TLClassifier.get_instance_of(self.config['classifier'], is_debug=self.is_debug)
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -52,6 +54,10 @@ class TLDetector(object):
         rospy.Subscriber('/image_color', Image, self.image_cb)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+
+        if self.is_debug:
+            self.debug_image_pub = rospy.Publisher('/debug_image_color', Image, queue_size=1)
+            rospy.loginfo("%s is started in DEBUG mode; expect higher latency", TLDetector.__name__)
 
         rospy.spin()
 
@@ -135,7 +141,14 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image_msg, "bgr8")
 
-        return self.light_classifier.classify(cv_image)
+        tl_id, debug_image_or_none = self.light_classifier.classify(cv_image)
+
+        if self.is_debug:
+            if debug_image_or_none is not None:
+                debug_imgmsg = self.bridge.cv2_to_imgmsg(debug_image_or_none, encoding="rgb8")
+                self.debug_image_pub.publish(debug_imgmsg)
+
+        return tl_id
 
     def process_traffic_lights(self):
         """

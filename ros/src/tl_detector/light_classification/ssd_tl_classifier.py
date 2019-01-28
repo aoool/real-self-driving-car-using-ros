@@ -47,12 +47,12 @@ class SSDTLClassifier(TLClassifier):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
             # if red or yellow light with confidence more than 10%
             if (clazz == 2 or clazz == 3) and scores[i] > 0.1:
-                return TrafficLight.RED
+                return TrafficLight.RED, None
 
-        return TrafficLight.UNKNOWN
+        return TrafficLight.UNKNOWN, None
 
-    def __init__(self):
-        super(SSDTLClassifier, self).__init__(self.__class__.__name__)
+    def __init__(self, is_debug):
+        super(SSDTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
         # Model path
         package_root_path = rospkg.RosPack().get_path('tl_detector')

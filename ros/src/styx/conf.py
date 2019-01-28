@@ -2,10 +2,10 @@ from attrdict import AttrDict
 
 conf = AttrDict({
     'subscribers': [
-        {'topic':'/vehicle/steering_cmd', 'type': 'steer_cmd', 'name': 'steering'},
-        {'topic':'/vehicle/throttle_cmd', 'type': 'throttle_cmd', 'name': 'throttle'},
-        {'topic':'/vehicle/brake_cmd', 'type': 'brake_cmd', 'name': 'brake'},
-	{'topic':'/final_waypoints', 'type': 'path_draw', 'name': 'path'},
+        {'topic': '/vehicle/steering_cmd', 'type': 'steer_cmd', 'name': 'steering'},
+        {'topic': '/vehicle/throttle_cmd', 'type': 'throttle_cmd', 'name': 'throttle'},
+        {'topic': '/vehicle/brake_cmd', 'type': 'brake_cmd', 'name': 'brake'},
+        {'topic': '/final_waypoints', 'type': 'path_draw', 'name': 'path'},
     ],
     'publishers': [
         {'topic': '/current_pose', 'type': 'pose', 'name': 'current_pose'},

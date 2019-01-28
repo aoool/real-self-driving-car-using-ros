@@ -39,10 +39,14 @@ class OpenCVTLClassifier(TLClassifier):
                 if len(approxcontour) > 5:
                     red_count += 1
         rospy.logdebug("Red count: %d", red_count)
-        if red_count > 0:
-            return TrafficLight.RED
 
-        return TrafficLight.UNKNOWN
+        tl_id = TrafficLight.RED if red_count > 0 else TrafficLight.UNKNOWN
 
-    def __init__(self):
-        super(OpenCVTLClassifier, self).__init__(self.__class__.__name__)
+        if self.is_debug:
+            # TODO: create a debug image
+            return tl_id, None
+
+        return tl_id, None
+
+    def __init__(self, is_debug):
+        super(OpenCVTLClassifier, self).__init__(self.__class__.__name__, is_debug)

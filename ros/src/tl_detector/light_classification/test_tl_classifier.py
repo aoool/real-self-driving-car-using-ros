@@ -46,17 +46,21 @@ class TLClassifierTest(TestCase):
 
         @TLClassifier.register_subclass('mock')
         class MockTLClassifier(TLClassifier):
-            def __init__(self):
-                super(MockTLClassifier, self).__init__(self.__class__.__name__)
+            def __init__(self, is_debug):
+                super(MockTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
             def _classify(self, image):
-                pass
+                return None, None
 
             def get_state_count_threshold(self, last_state):
                 pass
 
         rospy.init_node('test_tl_classifier', anonymous=True)
         mock_instance = TLClassifier.get_instance_of('mock')
-        for i in range(100):
+        for i in range(20):
             mock_instance.classify(None)
-        self.assertEqual(100, mock_instance._counter)
+        self.assertEqual(20, len(mock_instance._start_time_circular_buffer))
+
+        for i in range(200):
+            mock_instance.classify(None)
+        self.assertEqual(100, len(mock_instance._start_time_circular_buffer))

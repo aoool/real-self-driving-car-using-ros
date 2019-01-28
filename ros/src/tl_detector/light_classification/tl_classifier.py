@@ -32,12 +32,14 @@ class TLClassifier(object):
         return reg_subclass
 
     @classmethod
-    def get_instance_of(cls, classifier_name):
+    def get_instance_of(cls, classifier_name, is_debug=False):
         """
         It is a factory method for the `tl_classifier` module. It returns an instance of the classifier
         based on the input argument provided.
         :param classifier_name: name of the classifier
         :type classifier_name: str
+        :param is_debug: flag indicating that we are running in debug mode
+        :type is_debug: bool
         :return: instance of the classifier corresponding to the classifier string identifier
         :rtype: TLClassifier
         """
@@ -54,7 +56,7 @@ class TLClassifier(object):
         if classifier_type is None:
             raise ValueError("classifier_name parameter has unknown value: " + classifier_name
                              + "; the value should be in " + str(cls.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
-        cls.INSTANCE = classifier_type()
+        cls.INSTANCE = classifier_type(is_debug)
 
         return cls.INSTANCE
 
@@ -67,7 +69,7 @@ class TLClassifier(object):
         :param image: image containing the traffic light
         :type image: numpy.ndarray
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
-        :rtype: int
+        :rtype: tuple(int, numpy.ndarray)
         """
         raise NotImplementedError()
 
@@ -79,18 +81,18 @@ class TLClassifier(object):
         :param image: image containing the traffic light; image is in BGR8 encoding!
         :type image: numpy.ndarray
         :returns: ID of traffic light color (specified in styx_msgs/TrafficLight)
-        :rtype: int
+        :rtype: tuple(int, numpy.ndarray)
         """
         # append the start time to the circular buffer
         self._start_time_circular_buffer.append(rospy.get_time())
 
-        tl_state = self._classify(image)
+        tl_state, debug_image_or_none = self._classify(image)
 
         # log the FPS no faster than once per second
         fps = len(self._start_time_circular_buffer) / (rospy.get_time() - self._start_time_circular_buffer[0])
         rospy.logdebug_throttle(1.0, "FPS: %.3f" % fps)
 
-        return tl_state
+        return tl_state, debug_image_or_none
 
     @abstractmethod
     def get_state_count_threshold(self, last_state):
@@ -103,11 +105,14 @@ class TLClassifier(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def __init__(self, cls_name):
+    def __init__(self, cls_name, is_debug):
         """
         Constructor is marked as @abstractmethod to force implementing the __init__ method in subclasses.
         Subclasses must invoke their parent constructors.
         :param cls_name: string identifier of the subclass.
+        :type cls_name : str
+        :param is_debug: flag indicating that we are running in debug mode
+        :type is_debug: bool
         """
         rospy.loginfo("instantiating %s (available classifiers: %s)",
                       cls_name, str(self.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS.keys()))
@@ -118,3 +123,5 @@ class TLClassifier(object):
         # Once a bounded length deque is full, when new items are added,
         # a corresponding number of items are discarded from the opposite end.
         self._start_time_circular_buffer = collections.deque(maxlen=100)
+
+        self.is_debug = is_debug

@@ -12,3 +12,4 @@ stop_line_positions:
     - [351.84, 1574.65]
 is_site: False
 classifier: "opencv" # opencv, ssd, simple_cnn, yolo-tiny
+is_debug: false
