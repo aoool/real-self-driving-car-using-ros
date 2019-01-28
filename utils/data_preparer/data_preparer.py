@@ -486,11 +486,12 @@ KNOWN_DATASETS = {
 
 class DataPreparer:
 
-    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, balance: bool, pick_each: int,
+    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, resize: list, balance: bool, pick_each: int,
                  input_dir: str, output_dir: str, continue_output_dir: bool, draw_bounding_boxes: bool):
         self.pick_each = pick_each
         self.dataset = dataset
         self.balance = balance
+        self.resize = resize
         self.draw_bounding_boxes = draw_bounding_boxes
         self.transforms = [self._noop]
         if fliplr:
@@ -583,13 +584,16 @@ class DataPreparer:
             bb_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
         return np.asarray(bb_list)
 
-    @classmethod
-    def _fliplr(cls, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
-        seq = iaa.Sequential([
+    def _fliplr(self, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
+        seq_lst = [
             iaa.Fliplr(1.0),  # horizontally flip
-        ])
+        ]
+        if self.resize is not None:
+            seq_lst.append(iaa.Scale({"height": self.resize[0], "width": self.resize[1]}))
 
-        bbs = cls._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+        seq = iaa.Sequential(seq_lst)
+
+        bbs = self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
 
         # Make our sequence deterministic.
         # We can now apply it to the image and then to the BBs and it will lead to the same augmentations.
@@ -600,13 +604,16 @@ class DataPreparer:
 
         return image_aug, bbs_aug
 
-    @classmethod
-    def _scale(cls, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
-        seq = iaa.Sequential([
+    def _scale(self, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
+        seq_lst = [
             iaa.Affine(scale=0.7, mode='edge'),  # scale image, preserving original image shape
-        ])
+        ]
+        if self.resize is not None:
+            seq_lst.append(iaa.Scale({"height": self.resize[0], "width": self.resize[1]}))
 
-        bbs = cls._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+        seq = iaa.Sequential(seq_lst)
+
+        bbs = self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
 
         # Make our sequence deterministic.
         # We can now apply it to the image and then to the BBs and it will lead to the same augmentations.
@@ -617,14 +624,18 @@ class DataPreparer:
 
         return image_aug, bbs_aug
 
-    @classmethod
-    def _fliplr_and_scale(cls, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
-        seq = iaa.Sequential([
+    def _fliplr_and_scale(self, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
+        seq_lst = [
             iaa.Fliplr(1.0),  # horizontally flip
             iaa.Affine(scale=0.7, mode='edge'),  # scale image, preserving original image shape
-        ])
+        ]
 
-        bbs = cls._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+        if self.resize is not None:
+            seq_lst.append(iaa.Scale({"height": self.resize[0], "width": self.resize[1]}))
+
+        seq = iaa.Sequential(seq_lst)
+
+        bbs = self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
 
         # Make our sequence deterministic.
         # We can now apply it to the image and then to the BBs and it will lead to the same augmentations.
@@ -635,13 +646,13 @@ class DataPreparer:
 
         return image_aug, bbs_aug
 
-    @classmethod
-    def _noop(cls, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
-        return image.copy(), cls._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+    def _noop(self, image: np.ndarray, bboxes: np.ndarray) -> Tuple[np.ndarray, ia.BoundingBoxesOnImage]:
+        if self.resize is not None:
+            return self._resize(image, bboxes)
+        return image.copy(), self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
 
-    @classmethod
-    def _random_transforms(cls, image: np.ndarray, bboxes: np.ndarray):
-        seq = iaa.Sequential([
+    def _random_transforms(self, image: np.ndarray, bboxes: np.ndarray):
+        seq_lst = [
             iaa.Fliplr(0.5),  # horizontal flips
             # Strengthen or weaken the contrast in each image.
             iaa.ContrastNormalization((0.75, 1.5)),
@@ -650,10 +661,36 @@ class DataPreparer:
             # Apply affine transformations to each image.
             # Scale/zoom them, translate/move them, rotate them and shear them.
             iaa.Affine(scale=(0.8, 1.0), mode='edge')
-        ], random_order=True)  # apply augmenters in random order
+        ]
 
-        bbs = cls._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+        if self.resize is not None:
+            seq_lst.append(iaa.Scale({"height": self.resize[0], "width": self.resize[1]}))
 
+        seq = iaa.Sequential(seq_lst, random_order=True)  # apply augmenters in random order
+
+        bbs = self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+
+        seq_det = seq.to_deterministic()
+
+        image_aug = seq_det.augment_images([image])[0]
+        bbs_aug = seq_det.augment_bounding_boxes([bbs])[0]
+
+        return image_aug, bbs_aug
+
+    def _resize(self, image: np.ndarray, bboxes: np.ndarray):
+        if self.resize is None:
+            raise Exception('--resize option has not been specified but self.resize() '
+                            'method was invoked; script logic error')
+        seq_lst = [
+            iaa.Scale({"height": self.resize[0], "width": self.resize[1]}),  # resize not preserving the aspect ratio
+        ]
+
+        seq = iaa.Sequential(seq_lst)
+
+        bbs = self._ndarray_to_BoundingBoxesOnImage(bboxes, image.shape)
+
+        # Make our sequence deterministic.
+        # We can now apply it to the image and then to the BBs and it will lead to the same augmentations.
         seq_det = seq.to_deterministic()
 
         image_aug = seq_det.augment_images([image])[0]
@@ -883,6 +920,8 @@ Label formats:
     parser.add_argument('--pick-each', action='store', type=int, default=1, metavar='N',
                         help="picks each Nth image from the original dataset in accordace wih uniform distribution "
                              "and ignores other images")
+    parser.add_argument('--resize', action='store', nargs=2, type=int, metavar=('H','W'), default=None,
+                        help="resize all images to the specified height and width; aspect ratio is not preserved")
     parser.add_argument('--input-dir', action='store', type=str, required=True, metavar='DIR',
                         help="dataset's root directory")
     parser.add_argument('--output-dir', action='store', type=str, required=True, metavar='DIR',
@@ -898,6 +937,7 @@ Label formats:
     DataPreparer(dataset=KNOWN_DATASETS[args.dataset],
                  fliplr=args.fliplr,
                  scale=args.scale,
+                 resize=args.resize,
                  balance=args.balance,
                  pick_each=args.pick_each,
                  input_dir=args.input_dir,
