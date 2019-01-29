@@ -4,6 +4,9 @@ import rospkg
 
 import tensorflow as tf
 import numpy as np
+import cv2
+
+from abc import ABCMeta, abstractmethod
 
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
