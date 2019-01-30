@@ -1,7 +1,7 @@
 import rospy
 from unittest import TestCase
 from light_classification.tl_classifier import TLClassifier
-from light_classification.ssd_tl_classifier import SSDTLClassifier
+from light_classification.ssd_tl_classifier import SSDSimTLClassifier
 from light_classification.yolo.yolo_tiny_tl_classifier import YOLOTinyTLClassifier
 from light_classification.opencv_tl_classifier import OpenCVTLClassifier
 from roslaunch.parent import ROSLaunchParent
@@ -27,14 +27,14 @@ class TLClassifierTest(TestCase):
         TLClassifier.INSTANCE = None
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTLClassifier)
-        TLClassifier.register_subclass("ssd")(SSDTLClassifier)
+        TLClassifier.register_subclass("ssd-sim")(SSDSimTLClassifier)
         TLClassifier.register_subclass("yolo-tiny")(YOLOTinyTLClassifier)
 
     def tearDown(self):
         TLClassifier.INSTANCE = None
         TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS = {}
         TLClassifier.register_subclass("opencv")(OpenCVTLClassifier)
-        TLClassifier.register_subclass("ssd")(SSDTLClassifier)
+        TLClassifier.register_subclass("ssd-sim")(SSDSimTLClassifier)
         TLClassifier.register_subclass("yolo-tiny")(YOLOTinyTLClassifier)
 
     def test_get_instance_of(self):
