@@ -89,4 +89,11 @@ class SSDTLClassifier(TLClassifier):
 class SSDSimTLClassifier(SSDTLClassifier):
 
     def __init__(self, is_debug):
-        super(SSDSimTLClassifier, self).__init__(self.__class__.__name__, is_debug, 'models/ssd-sim.pb', 0.7)
+        super(SSDSimTLClassifier, self).__init__(self.__class__.__name__, is_debug, 'models/ssd-sim.pb', 0.8)
+
+
+@TLClassifier.register_subclass('ssd-real')
+class SSDRealTLClassifier(SSDTLClassifier):
+
+    def __init__(self, is_debug):
+        super(SSDRealTLClassifier, self).__init__(self.__class__.__name__, is_debug, 'models/ssd-real.pb', 0.5)
