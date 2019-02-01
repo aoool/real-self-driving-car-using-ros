@@ -42,7 +42,7 @@ class TLClassifierTest(TestCase):
     def test_get_instance_of(self):
         instance = TLClassifier.get_instance_of("opencv")
         self.assertIsInstance(instance, OpenCVTLClassifier)
-        self.assertEqual(3, len(TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS))
+        self.assertEqual(4, len(TLClassifier.KNOWN_TRAFFIC_LIGHT_CLASSIFIERS))
 
     def test_classify(self):
 
