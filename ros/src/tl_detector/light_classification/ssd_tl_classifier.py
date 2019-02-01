@@ -59,7 +59,7 @@ class SSDTLClassifier(TLClassifier):
         return TrafficLight.UNKNOWN, None
 
     @abstractmethod
-    def __init__(self, cls_name, is_debug, model_path, confidence):
+    def __init__(self, is_debug, model_path, confidence):
         super(SSDTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
         # Model path
@@ -89,11 +89,11 @@ class SSDTLClassifier(TLClassifier):
 class SSDSimTLClassifier(SSDTLClassifier):
 
     def __init__(self, is_debug):
-        super(SSDSimTLClassifier, self).__init__(self.__class__.__name__, is_debug, 'models/ssd-sim.pb', 0.8)
+        super(SSDSimTLClassifier, self).__init__(is_debug, 'models/ssd-sim.pb', 0.8)
 
 
 @TLClassifier.register_subclass('ssd-real')
 class SSDRealTLClassifier(SSDTLClassifier):
 
     def __init__(self, is_debug):
-        super(SSDRealTLClassifier, self).__init__(self.__class__.__name__, is_debug, 'models/ssd-real.pb', 0.5)
+        super(SSDRealTLClassifier, self).__init__(is_debug, 'models/ssd-real.pb', 0.5)
