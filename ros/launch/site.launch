@@ -13,7 +13,7 @@
     <include file="$(find waypoint_updater)/launch/waypoint_updater.launch"/>
 
     <!--Traffic Light Locations and Camera Config -->
-    <param name="traffic_light_config" textfile="$(find tl_detector)/site_traffic_light_config.yaml" />
+    <param name="traffic_light_config" textfile="$(find tl_detector)/config/site_traffic_light_config.yaml" />
 
     <!--Traffic Light Detector Node -->
     <include file="$(find tl_detector)/launch/tl_detector_site.launch"/>
