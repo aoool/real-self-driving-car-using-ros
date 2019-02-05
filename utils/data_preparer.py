@@ -459,8 +459,8 @@ class DataPreparer:
         :param pick: how many images to pick from the original dataset
         :param input_dir: input root dataset directory
         :param output_dir: output root dataset directory
-        :param continue_output_dir: should the script ignore the existence of `output_dir` and continue adding new images
-                                    and labels there preserving images and labels that are already there?
+        :param continue_output_dir: should the script ignore the existence of `output_dir` and continue adding
+                                    new images and labels there preserving images and labels that are already there?
         :param draw_bounding_boxes: should the script draw bounding boxes around traffic lights? (useful for debugging)
         """
         self.pick = pick
@@ -742,10 +742,13 @@ class DataPreparer:
                         out_img = out_bboxes_on_images.draw_on_image(out_img, thickness=2, color=(255, 255, 255))
 
                     # get label line for singular and ternary output label files
+                    out_img_path_for_labels = os.path.relpath(out_img_path, self.output_dir)
                     line_singular = \
-                        self.dataset.get_output_labels_line(entry, out_bboxes, out_img_path, 'singular') + '\n'
+                        self.dataset.get_output_labels_line(entry, out_bboxes,
+                                                            out_img_path_for_labels, 'singular') + '\n'
                     line_ternary = \
-                        self.dataset.get_output_labels_line(entry, out_bboxes, out_img_path, 'ternary') + '\n'
+                        self.dataset.get_output_labels_line(entry, out_bboxes,
+                                                            out_img_path_for_labels, 'ternary') + '\n'
 
                     # write output image and label files
                     cv2.imwrite(out_img_path, out_img)
