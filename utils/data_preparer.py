@@ -1,24 +1,35 @@
 #!/usr/bin/env python3
 
+########################################################################################################################
+# Copyright 2019 4Tzones                                                                                               #
+#                                                                                                                      #
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software                        #
+# and associated documentation files (the "Software"), to deal in the Software without restriction,                    #
+# including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,                #
+# and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,                #
+# subject to the following conditions:                                                                                 #
+#                                                                                                                      #
+# The above copyright notice and this permission notice shall be included in all copies                                #
+# or substantial portions of the Software.                                                                             #
+#                                                                                                                      #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,                                  #
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,                                                      #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.                                                                #
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,              #
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,                                                   #
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                              #
+########################################################################################################################
+
 """
-Copyright 2019 4Tzones
+This module contains a code that is able to read labels and images from several known traffic lights datasets
+and convert labels to several other formats. It is also able to augment images via horizontal flipping,
+contrast and brightness adjustments, and scaling. The resulting images and labels can be used for training
+neural networks that perform simultaneous detection and classification, such as YOLO and SSD.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-and associated documentation files (the "Software"), to deal in the Software without restriction,
-including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies
-or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+The script has been written by the 4Tzones team for the final (capstone) project of
+the Udacity's Self-Driving Car Engineer Nanodegree to prepare data for training different neural network models
+that perform detection and classification if the traffic lights.
 """
-
 
 import argparse
 import os
@@ -26,15 +37,19 @@ import yaml
 import uuid
 import cv2
 import random
-import imgaug as ia
 import numpy as np
-from glob import glob
+import imgaug as ia
 from imgaug import augmenters as iaa
+from glob import glob
 from abc import ABCMeta, abstractmethod
-from typing import Tuple
+from typing import Tuple, Union, Dict, List, Set
 
 
 class Dataset:
+    """
+    Base class that represents a dataset. It purpose is to contain dataset-specific information that
+    external users can retrieve by calling methods.
+    """
 
     __metaclass__ = ABCMeta
 
@@ -43,42 +58,37 @@ class Dataset:
         self._images_dir = 'images'
         self._labels_dir = 'labels'
 
-        self.present_label = 0
-        self.not_present_label = 1
-        self.red_label = 2
-        self.yellow_label = 3
-        self.green_label = 4
-
     @abstractmethod
-    def get_all_labels(self, input_dir: str) -> list:
+    def get_all_labels(self, input_dir: str) -> List:
         raise NotImplementedError()
 
     @abstractmethod
-    def filter_original_labels(self, labels_file_content: list) -> list:
+    def filter_original_labels(self, labels_file_content: List) -> List:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_class_mapping(self, mode: str):
+    def get_class_mapping(self, mode: str) -> Dict[str, int]:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_output_labels_line(self, entry, bboxes: np.ndarray, output_image_path: str, mode: str) -> str:
+    def get_output_labels_line(self, entry: Union[List, Dict], bboxes: np.ndarray,
+                               output_image_path: str, mode: str) -> str:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_input_image_path(self, input_dir, entry):
+    def get_input_image_path(self, input_dir: str, entry: Union[List, Dict]):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_bounding_boxes(self, entry, orig_image_shape):
+    def get_bounding_boxes(self, entry: Union[List, Dict], orig_image_shape: Tuple[int, int, int]):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_light_counters(self, entry) -> Tuple[int, int, int, int]:  # red, yellow, green, no light
+    def get_light_counters(self, entry: Union[List, Dict]) -> Tuple[int, int, int, int]:  # red, yellow, green, no light
         raise NotImplementedError()
 
     @abstractmethod
-    def get_entry_classes(self, entry) -> set:
+    def get_entry_classes(self, entry: Union[List, Dict]) -> Set:
         raise NotImplementedError()
 
     def get_output_images_dir(self, output_dir: str) -> str:
@@ -87,50 +97,57 @@ class Dataset:
     def get_output_image_path(self, output_dir: str, input_file_name: str) -> str:
         img_dir_name = self.get_output_images_dir(output_dir)
         extension = input_file_name.split('.')[-1]
-        return os.path.join(img_dir_name, str(uuid.uuid4())) + '.' +  extension
+        return os.path.join(img_dir_name, str(uuid.uuid4())) + '.' + extension
 
     def get_output_labels_dir(self, output_dir: str) -> str:
         return os.path.join(output_dir, self._labels_dir)
 
-    def get_output_labels_singular_file_name(self, output_dir: str):
+    def get_output_labels_singular_file_name(self, output_dir: str) -> str:
         return os.path.join(self.get_output_labels_dir(output_dir), "labels_singular.txt")
 
-    def get_output_labels_ternary_file_name(self, output_dir: str):
+    def get_output_labels_ternary_file_name(self, output_dir: str) -> str:
         return os.path.join(self.get_output_labels_dir(output_dir), "labels_ternary.txt")
 
-    def get_output_labels_singular_yaml_file_name(self, output_dir: str):
+    def get_output_labels_singular_yaml_file_name(self, output_dir: str) -> str:
         return os.path.join(self.get_output_labels_dir(output_dir), "labels_singular.yaml")
 
-    def get_output_labels_ternary_vatsal_yaml_file_name(self, output_dir: str):
+    def get_output_labels_ternary_vatsal_yaml_file_name(self, output_dir: str) -> str:
         return os.path.join(self.get_output_labels_dir(output_dir), "labels_ternary_vatsal.yaml")
 
-    def get_output_labels_ternary_bosh_yaml_file_name(self, output_dir: str):
+    def get_output_labels_ternary_bosh_yaml_file_name(self, output_dir: str) -> str:
         return os.path.join(self.get_output_labels_dir(output_dir), "labels_ternary_bosh.yaml")
 
-    def get_output_labels_ternary_yolo_mark_image_file_name(self, image_path: str):
+    @staticmethod
+    def get_output_labels_ternary_yolo_mark_image_file_name(image_path: str) -> str:
         return image_path.replace(image_path[image_path.rfind('.')+1:], 'txt')
 
-    def get_statistics_file_name(self, output_dir: str):
+    @staticmethod
+    def get_statistics_file_name(output_dir: str) -> str:
         return os.path.join(output_dir, "statistics.txt")
 
     @staticmethod
-    def get_present_label():
+    def get_present_label() -> int:
         return 0
 
     @staticmethod
-    def get_red_label():
+    def get_red_label() -> int:
         return 0
 
     @staticmethod
-    def get_yellow_label():
+    def get_yellow_label() -> int:
         return 1
 
     @staticmethod
-    def get_green_label():
+    def get_green_label() -> int:
         return 2
 
 
 class BoschSmallTrafficLightsDataset(Dataset):
+    """
+    A class representing a Bosh Small Traffic Lights dataset. It is aware of the labels used in that dataset,
+    location of labels/annotations file, etc.
+    Bosh Small Traffic Lights dataset link: https://hci.iwr.uni-heidelberg.de/node/6132.
+    """
 
     def __init__(self):
         super(BoschSmallTrafficLightsDataset, self).__init__('bosch_small_traffic_lights')
@@ -154,7 +171,7 @@ class BoschSmallTrafficLightsDataset(Dataset):
         else:
             raise ValueError("unknown label name: " + name)
 
-    def get_all_labels(self, input_dir: str) -> list:
+    def get_all_labels(self, input_dir):
         with open(os.path.join(input_dir, self._labels)) as f:
             labels = yaml.safe_load(f)
         return labels
@@ -177,7 +194,7 @@ class BoschSmallTrafficLightsDataset(Dataset):
 
         return filtered_labels
 
-    def get_class_mapping(self, mode: str):
+    def get_class_mapping(self, mode):
         if mode == 'singular':
             return self._singular_class_mapping
         elif mode == 'ternary':
@@ -185,7 +202,7 @@ class BoschSmallTrafficLightsDataset(Dataset):
         else:
             raise ValueError("unknown mode: " + mode)
 
-    def get_output_labels_line(self, entry, bboxes: np.ndarray, output_image_path: str, mode: str) -> str:
+    def get_output_labels_line(self, entry, bboxes, output_image_path, mode):
         class_mapping = self.get_class_mapping(mode)
         line = output_image_path
         assert bboxes.shape[0] == len(entry['boxes'])
@@ -206,7 +223,7 @@ class BoschSmallTrafficLightsDataset(Dataset):
             bboxes.append([bbox['x_min'], bbox['y_min'], bbox['x_max'], bbox['y_max']])
         return np.asarray(bboxes)
 
-    def get_light_counters(self, entry) -> Tuple[int, int, int, int]:
+    def get_light_counters(self, entry):
         class_mapping = self.get_class_mapping('ternary')
         counters = [0, 0, 0, 0]
         for bbox in entry['boxes']:
@@ -215,7 +232,7 @@ class BoschSmallTrafficLightsDataset(Dataset):
             counters[3] += 1
         return counters[0], counters[1], counters[2], counters[3]
 
-    def get_entry_classes(self, entry) -> set:
+    def get_entry_classes(self, entry):
         cls_set = set()
         class_mapping = self.get_class_mapping('ternary')
         for bbox in entry['boxes']:
@@ -223,18 +240,21 @@ class BoschSmallTrafficLightsDataset(Dataset):
         return cls_set
 
 
-class VatsalSrivastavaTrafficLightsSimulatorDataset(Dataset):
+class VatsalSrivastavaTrafficLightsDataset(Dataset):
+    """
+    Vatsal Srivastava has been a student of Self-Driving Car Engineer Udacity's Nanodegree and prepared a dataset
+    with real and simulator images. He has his own labels format, so we include a corresponding class.
+    Vatsal Srivastava Traffic Lights dataset link:
+        https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing.
+    """
 
     def __init__(self):
-        super(VatsalSrivastavaTrafficLightsSimulatorDataset, self).__init__(
-            'vatsal_srivastava_traffic_lights_simulator')
-        self._labels = "sim_data_annotations.yaml"
+        super(VatsalSrivastavaTrafficLightsDataset, self).__init__('vatsal_srivastava_traffic_lights')
+        self._label_set = {'Green', 'Yellow', 'Red'}
 
-        self.label_set = {'Green', 'Yellow', 'Red'}
+        self._singular_class_mapping = {label: self.get_present_label() for label in self._label_set}
 
-        self._singular_class_mapping = {label: self.get_present_label() for label in self.label_set}
-
-        self._ternary_class_mapping = {label: self._choose_label(label) for label in self.label_set}
+        self._ternary_class_mapping = {label: self._choose_label(label) for label in self._label_set}
 
     @classmethod
     def _choose_label(cls, name):
@@ -247,20 +267,17 @@ class VatsalSrivastavaTrafficLightsSimulatorDataset(Dataset):
         else:
             raise ValueError("unknown label name: " + name)
 
-    def get_all_labels(self, input_dir: str) -> list:
-        with open(os.path.join(input_dir, self._labels)) as f:
+    def get_all_labels(self, input_dir):
+        path = glob(os.path.join(input_dir, "*.yaml"))[0]
+        with open(path) as f:
             labels = yaml.safe_load(f)
         return labels
 
-    def filter_original_labels(self, labels_file_content: list) -> list:
-        """
-        No need to filter anything here.
-        :param labels_file_content: original labels content
-        :return: filtered labels content
-        """
+    def filter_original_labels(self, labels_file_content):
+        # No need to filter anything here.
         return labels_file_content
 
-    def get_class_mapping(self, mode: str):
+    def get_class_mapping(self, mode):
         if mode == 'singular':
             return self._singular_class_mapping
         elif mode == 'ternary':
@@ -268,7 +285,7 @@ class VatsalSrivastavaTrafficLightsSimulatorDataset(Dataset):
         else:
             raise ValueError("unknown mode: " + mode)
 
-    def get_output_labels_line(self, entry, bboxes: np.ndarray, output_image_path: str, mode: str) -> str:
+    def get_output_labels_line(self, entry, bboxes, output_image_path, mode):
         class_mapping = self.get_class_mapping(mode)
         line = output_image_path
         assert bboxes.shape[0] == len(entry['annotations'])
@@ -289,90 +306,7 @@ class VatsalSrivastavaTrafficLightsSimulatorDataset(Dataset):
             bboxes.append([bbox['xmin'], bbox['ymin'], bbox['xmin'] + bbox['x_width'], bbox['ymin'] + bbox['y_height']])
         return np.asarray(bboxes)
 
-    def get_light_counters(self, entry) -> Tuple[int, int, int, int]:
-        class_mapping = self.get_class_mapping('ternary')
-        counters = [0, 0, 0, 0]
-        for bbox in entry['annotations']:
-            counters[class_mapping[bbox['class']]] += 1
-        if not entry['annotations']:
-            counters[3] += 1
-        return counters[0], counters[1], counters[2], counters[3]
-
-    def get_entry_classes(self, entry) -> set:
-        cls_set = set()
-        class_mapping = self.get_class_mapping('ternary')
-        for bbox in entry['annotations']:
-            cls_set.add(class_mapping[bbox['class']])
-        return cls_set
-
-
-class VatsalSrivastavaTrafficLightsChurchLotDataset(Dataset):
-
-    def __init__(self):
-        super(VatsalSrivastavaTrafficLightsChurchLotDataset, self).__init__(
-            'vatsal_srivastava_traffic_lights_church_lot')
-        self._labels = "real_data_annotations.yaml"
-
-        self.label_set = {'Green', 'Yellow', 'Red'}
-
-        self._singular_class_mapping = {label: self.get_present_label() for label in self.label_set}
-
-        self._ternary_class_mapping = {label: self._choose_label(label) for label in self.label_set}
-
-    @classmethod
-    def _choose_label(cls, name):
-        if name.startswith('Red'):
-            return cls.get_red_label()
-        elif name.startswith('Yellow'):
-            return cls.get_yellow_label()
-        elif name.startswith('Green'):
-            return cls.get_green_label()
-        else:
-            raise ValueError("unknown label name: " + name)
-
-    def get_all_labels(self, input_dir: str) -> list:
-        with open(os.path.join(input_dir, self._labels)) as f:
-            labels = yaml.safe_load(f)
-        return labels
-
-    def filter_original_labels(self, labels_file_content: list) -> list:
-        """
-        No need to filter anything here.
-        :param labels_file_content: original labels content
-        :return: filtered labels content
-        """
-        return labels_file_content
-
-    def get_class_mapping(self, mode: str):
-        if mode == 'singular':
-            return self._singular_class_mapping
-        elif mode == 'ternary':
-            return self._ternary_class_mapping
-        else:
-            raise ValueError("unknown mode: " + mode)
-
-    def get_output_labels_line(self, entry, bboxes: np.ndarray, output_image_path: str, mode: str) -> str:
-        class_mapping = self.get_class_mapping(mode)
-        line = output_image_path
-        assert bboxes.shape[0] == len(entry['annotations'])
-        for i in range(bboxes.shape[0]):
-            line += ' ' + str(int(round(bboxes[i][0]))) + ',' \
-                        + str(int(round(bboxes[i][1]))) + ',' \
-                        + str(int(round(bboxes[i][2]))) + ',' \
-                        + str(int(round(bboxes[i][3]))) + ',' \
-                        + str(class_mapping[entry['annotations'][i]['class']])
-        return line
-
-    def get_input_image_path(self, input_dir, entity):
-        return os.path.join(input_dir, entity['filename'])
-
-    def get_bounding_boxes(self, entry, orig_image_shape):
-        bboxes = []
-        for bbox in entry['annotations']:
-            bboxes.append([bbox['xmin'], bbox['ymin'], bbox['xmin'] + bbox['x_width'], bbox['ymin'] + bbox['y_height']])
-        return np.asarray(bboxes)
-
-    def get_light_counters(self, entry) -> Tuple[int, int, int, int]:
+    def get_light_counters(self, entry):
         class_mapping = self.get_class_mapping('ternary')
         counters = [0, 0, 0, 0]
         for bbox in entry['annotations']:
@@ -390,6 +324,11 @@ class VatsalSrivastavaTrafficLightsChurchLotDataset(Dataset):
 
 
 class YoloMarkDataset(Dataset):
+    """
+    Yolo_mark is a tool to label images with bounding boxes. It is very useful while annotating images yourself.
+    Yolo_mark GitHub repo: https://github.com/AlexeyAB/Yolo_mark
+    4Tzones Udacity Traffic Lights dataset (dataset prepared by 4Tzones team): https://yadi.sk/d/iNuEbOEVOnmFaQ
+    """
 
     def __init__(self):
         super(YoloMarkDataset, self).__init__('yolo_mark')
@@ -399,7 +338,7 @@ class YoloMarkDataset(Dataset):
 
         self._ternary_class_mapping = {label: label for label in self.label_set}
 
-    def get_all_labels(self, input_dir: str) -> list:
+    def get_all_labels(self, input_dir):
         label_paths = glob(os.path.join(input_dir, "*.txt"))
         labels = []
         for path in label_paths:
@@ -414,7 +353,7 @@ class YoloMarkDataset(Dataset):
             labels.append(entry)
         return labels
 
-    def filter_original_labels(self, labels_file_content: list) -> list:
+    def filter_original_labels(self, labels_file_content):
         filtered_labels = []
         for entry in labels_file_content:
             has_unknown = False
@@ -425,7 +364,7 @@ class YoloMarkDataset(Dataset):
                 filtered_labels.append(entry)
         return filtered_labels
 
-    def get_class_mapping(self, mode: str):
+    def get_class_mapping(self, mode):
         if mode == 'singular':
             return self._singular_class_mapping
         elif mode == 'ternary':
@@ -433,7 +372,7 @@ class YoloMarkDataset(Dataset):
         else:
             raise ValueError("unknown mode: " + mode)
 
-    def get_output_labels_line(self, entry, bboxes: np.ndarray, output_image_path: str, mode: str) -> str:
+    def get_output_labels_line(self, entry, bboxes, output_image_path, mode):
         class_mapping = self.get_class_mapping(mode)
         line = output_image_path
         assert bboxes.shape[0] == (len(entry)-1)
@@ -459,7 +398,7 @@ class YoloMarkDataset(Dataset):
             bboxes.append([x_center - x_side/2, y_center - y_side/2, x_center + x_side/2, y_center + y_side/2])
         return np.asarray(bboxes)
 
-    def get_light_counters(self, entry) -> Tuple[int, int, int, int]:
+    def get_light_counters(self, entry):
         class_mapping = self.get_class_mapping('ternary')
         counters = [0, 0, 0, 0]
         for bbox in entry[1:]:
@@ -475,11 +414,13 @@ class YoloMarkDataset(Dataset):
             cls_set.add(class_mapping[bbox[0]])
         return cls_set
 
-
+#
+# Dictionary with the supported datasets.
+# Used to map string dataset name provided from the command line to a corresponding Dataset class.
+#
 KNOWN_DATASETS = {
     'bosch_small_traffic_lights': BoschSmallTrafficLightsDataset(),
-    'vatsal_srivastava_traffic_lights_simulator': VatsalSrivastavaTrafficLightsSimulatorDataset(),
-    'vatsal_srivastava_traffic_lights_church_lot': VatsalSrivastavaTrafficLightsChurchLotDataset(),
+    'vatsal_srivastava_traffic_lights': VatsalSrivastavaTrafficLightsDataset(),
     'yolo_mark': YoloMarkDataset(),
 }
 
@@ -532,7 +473,7 @@ class DataPreparer:
 
     @staticmethod
     def _to_vatsal_yaml_line(line):
-        class_map =  {'0': 'Red', '1': 'Yellow', '2': 'Green'}
+        class_map = {'0': 'Red', '1': 'Yellow', '2': 'Green'}
         line_parts = line.strip().split(' ')
         annotations = []
         for box in line_parts[1:]:
@@ -544,7 +485,7 @@ class DataPreparer:
 
     @staticmethod
     def _to_bosh_yaml_line(line):
-        class_map =  {'0': 'Red', '1': 'Yellow', '2': 'Green'}
+        class_map = {'0': 'Red', '1': 'Yellow', '2': 'Green'}
         line_parts = line.strip().split(' ')
         annotations = []
         for box in line_parts[1:]:
@@ -704,7 +645,7 @@ class DataPreparer:
         print('\n\nStart balancing dataset...\n')
 
         max_between_classes = max(red_counter, yellow_counter, green_counter)
-        if (nolight_counter > 3 * max_between_classes):
+        if nolight_counter > 3 * max_between_classes:
             val = nolight_counter // 3
             target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt = val, val, val, nolight_counter
         else:
@@ -712,13 +653,13 @@ class DataPreparer:
                 max_between_classes, max_between_classes, max_between_classes, 3*max_between_classes
 
         red_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_red_label()))
-                                     for _ in range(target_red_cnt - red_counter)]
+                       for _ in range(target_red_cnt - red_counter)]
         yellow_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_yellow_label()))
-                                     for _ in range(target_yellow_cnt - yellow_counter)]
+                          for _ in range(target_yellow_cnt - yellow_counter)]
         green_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_green_label()))
-                                     for _ in range(target_green_cnt - green_counter)]
+                         for _ in range(target_green_cnt - green_counter)]
         nolight_entries = [random.choice(self.get_entries_containing_label(None))
-                                     for _ in range(target_nolight_cnt - nolight_counter)]
+                           for _ in range(target_nolight_cnt - nolight_counter)]
 
         transforms = [self._random_transforms]
         entries = []
@@ -729,9 +670,9 @@ class DataPreparer:
 
         red_cnt, yellow_cnt, green_cnt, nolight_cnt = self.process_data(transforms, entries)
 
-        assert target_red_cnt     == red_cnt     + red_counter
-        assert target_yellow_cnt  == yellow_cnt  + yellow_counter
-        assert target_green_cnt   == green_cnt   + green_counter
+        assert target_red_cnt == red_cnt + red_counter
+        assert target_yellow_cnt == yellow_cnt + yellow_counter
+        assert target_green_cnt == green_cnt + green_counter
         assert target_nolight_cnt == nolight_cnt + nolight_counter
 
         return target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt
@@ -747,9 +688,9 @@ class DataPreparer:
             with open(self.dataset.get_output_labels_singular_file_name(self.output_dir), 'a+') as f_singular, \
                     open(self.dataset.get_output_labels_ternary_file_name(self.output_dir), 'a+') as f_ternary, \
                     open(self.dataset.get_output_labels_ternary_vatsal_yaml_file_name(self.output_dir), 'a+') \
-                            as f_vatsal_yaml_ternary, \
+                    as f_vatsal_yaml_ternary, \
                     open(self.dataset.get_output_labels_ternary_bosh_yaml_file_name(self.output_dir), 'a+') \
-                            as f_bosh_yaml_ternary:
+                    as f_bosh_yaml_ternary:
                 for entry in filtered_entries:
                     counter += 1
                     in_img_path = self.dataset.get_input_image_path(self.input_dir, entry)
@@ -767,8 +708,8 @@ class DataPreparer:
                         out_img = out_bboxes_on_images.draw_on_image(out_img, thickness=2, color=(255, 255, 255))
 
                     # get label line for singular and ternary output label files
-                    line_singular = self.dataset.get_output_labels_line(entry, out_bboxes, out_img_path, 'singular') \
-                                    + '\n'
+                    line_singular = \
+                        self.dataset.get_output_labels_line(entry, out_bboxes, out_img_path, 'singular') + '\n'
                     line_ternary = \
                         self.dataset.get_output_labels_line(entry, out_bboxes, out_img_path, 'ternary') + '\n'
 
@@ -864,8 +805,7 @@ class DataPreparer:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description=\
-"""\
+        description="""\
 This script is capable of working with several datasets from the list below. 
 It applies the requested image augmentation to the images from the provided dataset
 and converts labels to several formats specified below. It also balances dataset to the following
@@ -875,7 +815,8 @@ Datasets:
     - Bosh Small Traffic Lights Dataset: https://hci.iwr.uni-heidelberg.de/node/6132
     - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Church Lot):  
           https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing
-    - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark
+    - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark.
+      4Tzones Udacity Traffic Lights dataset (Yolo_mark compatible): https://yadi.sk/d/iNuEbOEVOnmFaQ.
 
 Label formats:
     - One row for one image (singular and ternary); 
@@ -906,8 +847,7 @@ Label formats:
     )
 
     parser.add_argument('--dataset', action='store',  type=str, required=True,
-                        choices=['bosch_small_traffic_lights', 'vatsal_srivastava_traffic_lights_simulator',
-                                 'vatsal_srivastava_traffic_lights_church_lot', 'yolo_mark'],
+                        choices=['bosch_small_traffic_lights', 'vatsal_srivastava_traffic_lights', 'yolo_mark'],
                         help='dataset name')
     parser.add_argument('--fliplr', action='store_true',
                         help="apply imgaug.Fliplr function (flip horizontally) to all images; "
@@ -920,7 +860,7 @@ Label formats:
     parser.add_argument('--pick-each', action='store', type=int, default=1, metavar='N',
                         help="picks each Nth image from the original dataset in accordace wih uniform distribution "
                              "and ignores other images")
-    parser.add_argument('--resize', action='store', nargs=2, type=int, metavar=('H','W'), default=None,
+    parser.add_argument('--resize', action='store', nargs=2, type=int, metavar=('H', 'W'), default=None,
                         help="resize all images to the specified height and width; aspect ratio is not preserved")
     parser.add_argument('--input-dir', action='store', type=str, required=True, metavar='DIR',
                         help="dataset's root directory")
