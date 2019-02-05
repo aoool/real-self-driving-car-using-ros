@@ -5,24 +5,37 @@ import rospkg
 import tensorflow as tf
 import numpy as np
 import cv2
+from PIL import Image, ImageFont, ImageDraw
 
 from abc import ABCMeta, abstractmethod
 
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
 
-
 class SSDTLClassifier(TLClassifier):
 
     __metaclass__ = ABCMeta
 
-    def get_state_count_threshold(self, last_state):
+    @staticmethod
+    def get_state_count_threshold(last_state):
         if last_state == TrafficLight.RED:
             # High threshold for accelerating
             return 3
-
         # Low threshold for stopping
         return 1
+
+    @staticmethod
+    def convert_box_coords(boxes, height, width):
+        """
+        Converts bounding boxes from normalized
+        coordinates (0 to 1), to image coordinates
+        """
+        box_coords = np.zeros_like(boxes)
+        box_coords[:, 0] = boxes[:, 0] * height
+        box_coords[:, 1] = boxes[:, 1] * width
+        box_coords[:, 2] = boxes[:, 2] * height
+        box_coords[:, 3] = boxes[:, 3] * width
+        return box_coords
 
     @staticmethod
     def load_graph(graph_file):
@@ -34,37 +47,113 @@ class SSDTLClassifier(TLClassifier):
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
-
         return graph
+
+    def filter_boxes(self, boxes, scores, classes):
+        """
+        Filters boxes with scores less than
+        confidence threshold
+        """
+        n = len(classes)
+        idxs = []
+        for i in range(n):
+            if scores[i] >= self.confidence:
+                idxs.append(i)
+
+        boxes = boxes[idxs, ...]
+        scores = scores[idxs, ...]
+        classes = classes[idxs, ...]
+        return boxes, scores, classes
+
+    def _get_debug_image(self, image, boxes, scores, classes):
+        """Draws detected bounding boxes"""
+        if len(classes) == 0:
+            return image
+
+        pil_image = Image.fromarray(image)
+        width, height = pil_image.size
+
+        box_coords = self.convert_box_coords(boxes, height, width)
+
+        font = ImageFont.truetype(font=os.path.join(self.package_root_path,'config/FiraMono-Medium.otf'),
+                                  size=np.floor(3e-2 * pil_image.size[1] + 0.5).astype('int32'))
+        thickness = (pil_image.size[0] + pil_image.size[1]) // 300
+
+        i = np.argmax(scores)
+        score = scores[i]
+        c = classes[i]
+        predicted_class = self.labels_dict[c]
+        box = box_coords[i]
+
+        draw = ImageDraw.Draw(pil_image)
+
+        label = '{} {:.2f}'.format(predicted_class, score)
+        label_size = draw.textsize(label, font)
+
+        top, left, bottom, right = box
+        top = max(0, np.floor(top + 0.5).astype('int32'))
+        left = max(0, np.floor(left + 0.5).astype('int32'))
+        bottom = min(pil_image.size[1], np.floor(bottom + 0.5).astype('int32'))
+        right = min(pil_image.size[0], np.floor(right + 0.5).astype('int32'))
+
+        if top - label_size[1] >= 0:
+            text_origin = np.array([left, top - label_size[1]])
+        else:
+            text_origin = np.array([left, top + 1])
+
+        for j in range(thickness):
+            draw.rectangle([left + j, top + j, right - j, bottom - j], outline=self.labels_dict[c])
+
+        draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.labels_dict[c])
+
+        draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+        return np.asarray(pil_image)
 
     def _classify(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
+        image_resized = cv2.resize(image, (300, 300))
+        image_np = np.expand_dims(np.asarray(image_resized, dtype=np.uint8), 0)
+
         # Actual detection
-        (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
-                                                 feed_dict={self.image_tensor: image_np})
+        (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores,
+                                                  self.detection_classes], feed_dict={self.image_tensor: image_np})
 
         # Remove unnecessary dimensions
+        boxes = np.squeeze(boxes)
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
 
-        for i, clazz in enumerate(classes):
-            rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
-            # if red or yellow light with score more than confidence threshold
-            if (clazz == 2) and scores[i] > self.confidence:
-                return TrafficLight.RED, None
-            if (clazz == 3) and scores[i] > self.confidence:
-                return TrafficLight.YELLOW, None
+        boxes, scores, classes = self.filter_boxes(boxes, scores, classes)
 
-        return TrafficLight.UNKNOWN, None
+        for i, c in enumerate(classes):
+            rospy.logdebug('class = %s, score = %s', self.labels_dict[c], str(scores[i]))
+
+        if len(classes) == 0:
+            traffic_light = TrafficLight.UNKNOWN
+        else:
+            i = np.argmax(scores)
+            if classes[i] == 2:
+                traffic_light = TrafficLight.RED
+            elif classes[i] == 3:
+                traffic_light = TrafficLight.YELLOW
+            elif classes[i] == 1:
+                traffic_light = TrafficLight.GREEN
+            else:
+                traffic_light = TrafficLight.UNKNOWN
+
+        if self.is_debug:
+            # create a debug image with bounding boxes and labels
+            debug_image = self._get_debug_image(image, boxes, scores, classes)
+            return traffic_light, debug_image
+        return traffic_light, None
 
     @abstractmethod
     def __init__(self, is_debug, model_path, confidence):
         super(SSDTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
         # Model path
-        package_root_path = rospkg.RosPack().get_path('tl_detector')
-        model_path = os.path.join(package_root_path, model_path)
+        self.package_root_path = rospkg.RosPack().get_path('tl_detector')
+        model_path = os.path.join(self.package_root_path, model_path)
 
         # Set confidence
         self.confidence = confidence
