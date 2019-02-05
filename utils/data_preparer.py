@@ -414,6 +414,7 @@ class YoloMarkDataset(Dataset):
             cls_set.add(class_mapping[bbox[0]])
         return cls_set
 
+
 #
 # Dictionary with the supported datasets.
 # Used to map string dataset name provided from the command line to a corresponding Dataset class.
@@ -426,10 +427,43 @@ KNOWN_DATASETS = {
 
 
 class DataPreparer:
+    """
+    Class responsible for image transformations and label conversion.
 
-    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, resize: list, balance: bool, pick_each: int,
+
+    Assume that the original dataset contains M samples. The script first filter images we do not want to have in the
+    resulting (output) dataset. Assume that after the filtering there are N samples left. All these N images will be
+    present in the output dataset. Additionally, if a user specifies any additional transformation, except `--resize`,
+    the size of the output dataset increases by N transformed images. If `--fliplr` and `--scale` options are
+    specified together, the size of the resulting dataset will be 3*N.
+
+    If the `--balance` option is specified, the number of images with RED, YELLOW, and GREEN traffic lights will
+    be equalized and the number of samples with no traffic lights will be len(RED) + len(YELLOW) + len(GREEN), that is,
+    len(RED) == len(YELLOW) == len(GREEN) == 1/3*len(NO_LIGHTS).
+
+    If the `--resize` option is specified, all output images will be resized to the requested shape disregarding the
+    original image aspect ratio.
+    """
+
+    def __init__(self, dataset: Dataset, fliplr: bool, scale: bool, resize: list, balance: bool, pick: int,
                  input_dir: str, output_dir: str, continue_output_dir: bool, draw_bounding_boxes: bool):
-        self.pick_each = pick_each
+        """
+        Constructor creates output directory and "plans" a sequence of transformations to be applied on images based
+        on the input parameters.
+        :param dataset: Dataset concrete sub-class
+        :param fliplr: should the images be flipped horizontally?
+        :param scale: should random scaling be applied on images?
+        :param resize: should all output images be resized to `resize` shape (width, height)?
+        :param balance: should number of red, green, and yellow samples be equal in dataset and the number of
+                        images without traffic lights be red+green+yellow?
+        :param pick: how many images to pick from the original dataset
+        :param input_dir: input root dataset directory
+        :param output_dir: output root dataset directory
+        :param continue_output_dir: should the script ignore the existence of `output_dir` and continue adding new images
+                                    and labels there preserving images and labels that are already there?
+        :param draw_bounding_boxes: should the script draw bounding boxes around traffic lights? (useful for debugging)
+        """
+        self.pick = pick
         self.dataset = dataset
         self.balance = balance
         self.resize = resize
@@ -462,7 +496,7 @@ class DataPreparer:
     def _read_original_labels(self):
         self.original_labels = self.dataset.get_all_labels(self.input_dir)
 
-    def get_entries_containing_label(self, label):
+    def _get_entries_containing_label(self, label):
         entries = []
         filtered_labels = self.dataset.filter_original_labels(self.original_labels)
         for entry in filtered_labels:
@@ -639,7 +673,7 @@ class DataPreparer:
 
         return image_aug, bbs_aug
 
-    def balance_dataset(self, red_counter, yellow_counter, green_counter, nolight_counter):
+    def _balance_dataset(self, red_counter, yellow_counter, green_counter, nolight_counter):
         if 0 in [red_counter, yellow_counter, green_counter, nolight_counter]:
             raise ValueError('cannot balance dataset where some traffic light classes have no representatives')
         print('\n\nStart balancing dataset...\n')
@@ -652,13 +686,13 @@ class DataPreparer:
             target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt = \
                 max_between_classes, max_between_classes, max_between_classes, 3*max_between_classes
 
-        red_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_red_label()))
+        red_entries = [random.choice(self._get_entries_containing_label(self.dataset.get_red_label()))
                        for _ in range(target_red_cnt - red_counter)]
-        yellow_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_yellow_label()))
+        yellow_entries = [random.choice(self._get_entries_containing_label(self.dataset.get_yellow_label()))
                           for _ in range(target_yellow_cnt - yellow_counter)]
-        green_entries = [random.choice(self.get_entries_containing_label(self.dataset.get_green_label()))
+        green_entries = [random.choice(self._get_entries_containing_label(self.dataset.get_green_label()))
                          for _ in range(target_green_cnt - green_counter)]
-        nolight_entries = [random.choice(self.get_entries_containing_label(None))
+        nolight_entries = [random.choice(self._get_entries_containing_label(None))
                            for _ in range(target_nolight_cnt - nolight_counter)]
 
         transforms = [self._random_transforms]
@@ -668,7 +702,7 @@ class DataPreparer:
         entries.extend(green_entries)
         entries.extend(nolight_entries)
 
-        red_cnt, yellow_cnt, green_cnt, nolight_cnt = self.process_data(transforms, entries)
+        red_cnt, yellow_cnt, green_cnt, nolight_cnt = self._process_data(transforms, entries)
 
         assert target_red_cnt == red_cnt + red_counter
         assert target_yellow_cnt == yellow_cnt + yellow_counter
@@ -677,7 +711,7 @@ class DataPreparer:
 
         return target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt
 
-    def process_data(self, transforms, filtered_entries):
+    def _process_data(self, transforms, filtered_entries):
         counter = 0
         red_counter = 0
         yellow_counter = 0
@@ -746,7 +780,7 @@ class DataPreparer:
 
         return red_counter, yellow_counter, green_counter, nolight_counter
 
-    def write_statistics(self, red_counter, yellow_counter, green_counter, nolight_counter):
+    def _write_statistics(self, red_counter, yellow_counter, green_counter, nolight_counter):
         # update counters in accordance with what already in the statistics file
         if os.path.exists(self.dataset.get_statistics_file_name(self.output_dir)):
             with open(self.dataset.get_statistics_file_name(self.output_dir), 'r') as f_stat:
@@ -761,14 +795,17 @@ class DataPreparer:
                     green_counter += val
                 elif line.startswith('nolight'):
                     nolight_counter += val
-                else:
+                elif not line.startswith("total"):
                     raise IOError('file ' + self.dataset.get_statistics_file_name(self.output_dir)
                                   + ' has a content of unknown format')
+
+        total_counter = red_counter + yellow_counter + green_counter + nolight_counter
         # write counters to statistics file
-        stat_info = "red:     %s\n" \
-                    "yellow:  %s\n" \
-                    "green:   %s\n" \
-                    "nolight: %s\n" % (red_counter, yellow_counter, green_counter, nolight_counter)
+        stat_info = "red:     %d\n" \
+                    "yellow:  %d\n" \
+                    "green:   %d\n" \
+                    "nolight: %d\n" \
+                    "total:   %d\n" % (red_counter, yellow_counter, green_counter, nolight_counter, total_counter)
         print('DATASET STATISTICS:')
         print(stat_info)
         with open(self.dataset.get_statistics_file_name(self.output_dir), 'w+') as f_stat:
@@ -782,25 +819,27 @@ class DataPreparer:
         print("Entries in original dataset:", len(self.original_labels))
         print("Entries in filtered dataset", len(filtered_labels))
 
-        if self.pick_each > 1:
-            filtered_labels = random.sample(filtered_labels, len(filtered_labels) // self.pick_each)
+        if self.pick > 1:
+            filtered_labels = random.sample(filtered_labels, self.pick)
 
         red_counter, yellow_counter, green_counter, nolight_counter = \
-            self.process_data(self.transforms, filtered_labels)
+            self._process_data(self.transforms, filtered_labels)
+        total_counter = red_counter + yellow_counter + green_counter + nolight_counter
 
         # write counters to statistics file
-        stat_info = "red:     %s\n" \
-                    "yellow:  %s\n" \
-                    "green:   %s\n" \
-                    "nolight: %s\n" % (red_counter, yellow_counter, green_counter, nolight_counter)
+        stat_info = "red:     %d\n" \
+                    "yellow:  %d\n" \
+                    "green:   %d\n" \
+                    "nolight: %d\n" \
+                    "total:   %d\n" % (red_counter, yellow_counter, green_counter, nolight_counter, total_counter)
         print('DURING THIS RUN IDENTIFIED:')
         print(stat_info)
 
         if self.balance:
             red_counter, yellow_counter, green_counter, nolight_counter = \
-                self.balance_dataset(red_counter, yellow_counter, green_counter, nolight_counter)
+                self._balance_dataset(red_counter, yellow_counter, green_counter, nolight_counter)
 
-        self.write_statistics(red_counter, yellow_counter, green_counter, nolight_counter)
+        self._write_statistics(red_counter, yellow_counter, green_counter, nolight_counter)
 
 
 if __name__ == '__main__':
@@ -813,13 +852,14 @@ form: red == yellow == green == nolight/3.
 
 Datasets:
     - Bosh Small Traffic Lights Dataset: https://hci.iwr.uni-heidelberg.de/node/6132
-    - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Church Lot):  
+    - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Test Lot):  
           https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing
     - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark.
       4Tzones Udacity Traffic Lights dataset (Yolo_mark compatible): https://yadi.sk/d/iNuEbOEVOnmFaQ.
 
 Label formats:
     - One row for one image (singular and ternary); 
+      Useful for https://github.com/qqwweee/keras-yolo3;
       Row format: image_file_path box1 box2 ... boxN; 
       Box format: x_min,y_min,x_max,y_max,class_id (no space).
     - Vatsal Srivastava's yaml format (only ternary). Example:
@@ -853,12 +893,12 @@ Label formats:
                         help="apply imgaug.Fliplr function (flip horizontally) to all images; "
                              "dataset size will x2 in size")
     parser.add_argument('--scale', action='store_true',
-                        help="apply imgaug.Affine(scale=(0.7, 0.7)) function "
+                        help="apply imgaug.Affine(scale=0.7) function "
                              "(scale image, keeping original image shape); dataset size will x2 in size")
     parser.add_argument('--balance', action='store_true',
                         help="balance dataset, so that there is an equal number of representatives of each class")
-    parser.add_argument('--pick-each', action='store', type=int, default=1, metavar='N',
-                        help="picks each Nth image from the original dataset in accordace wih uniform distribution "
+    parser.add_argument('--pick', action='store', type=int, default=1, metavar='N',
+                        help="picks N images from the original dataset in accordance with uniform distribution "
                              "and ignores other images")
     parser.add_argument('--resize', action='store', nargs=2, type=int, metavar=('H', 'W'), default=None,
                         help="resize all images to the specified height and width; aspect ratio is not preserved")
@@ -879,7 +919,7 @@ Label formats:
                  scale=args.scale,
                  resize=args.resize,
                  balance=args.balance,
-                 pick_each=args.pick_each,
+                 pick=args.pick,
                  input_dir=args.input_dir,
                  output_dir=args.output_dir,
                  continue_output_dir=args.continue_output_dir,
