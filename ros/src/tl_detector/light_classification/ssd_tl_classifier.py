@@ -12,43 +12,69 @@ from abc import ABCMeta, abstractmethod
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
 
-
 class SSDTLClassifier(TLClassifier):
 
     __metaclass__ = ABCMeta
 
-    def get_state_count_threshold(self, last_state):
+    @staticmethod
+    def get_state_count_threshold(last_state):
         if last_state == TrafficLight.RED:
             # High threshold for accelerating
             return 3
-
         # Low threshold for stopping
         return 1
 
-    def _get_debug_image(self, image, boxes, classes, scores):
+    @staticmethod
+    def convert_box_coords(boxes, height, width):
         """
-        Draws bounding boxes with class labels and scores on an image.
-        :param image: input image that come from the TLDetector
-        :type image: np.ndarray
-        :param out_boxes: bounding boxes predicted by SSD
-        :type out_boxes: np.ndarray
-        :param out_classes: classes predicted by SSD
-        :type out_classes: np.ndarray
-        :param out_scores: scores predicted by SSD
-        :type out_scores: np.ndarray
-        :return: image where bounding boxes are drawn
-        :rtype np.ndarray
+        Converts bounding boxes from normalized
+        coordinates (0 to 1), to image coordinates
         """
-        if len(scores) == 0:
-            return image
-        pil_image = Image.fromarray(image)
-        width, height = pil_image.size
-
         box_coords = np.zeros_like(boxes)
         box_coords[:, 0] = boxes[:, 0] * height
         box_coords[:, 1] = boxes[:, 1] * width
         box_coords[:, 2] = boxes[:, 2] * height
         box_coords[:, 3] = boxes[:, 3] * width
+        return box_coords
+
+    @staticmethod
+    def load_graph(graph_file):
+        """Loads a frozen inference graph"""
+        graph = tf.Graph()
+        with graph.as_default():
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(graph_file, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tf.import_graph_def(od_graph_def, name='')
+        return graph
+
+    def filter_boxes(self, boxes, scores, classes):
+        """
+        Filters boxes with scores less than
+        confidence threshold
+        """
+        n = len(classes)
+        idxs = []
+        for i in range(n):
+            if scores[i] >= self.confidence:
+                idxs.append(i)
+
+        boxes = boxes[idxs, ...]
+        scores = scores[idxs, ...]
+        classes = classes[idxs, ...]
+        return boxes, scores, classes
+
+    def _get_debug_image(self, image, boxes, scores, classes):
+        """Draws detected bounding boxes"""
+        if len(classes) == 0:
+            return image
+
+        pil_image = Image.fromarray(image)
+        width, height = pil_image.size
+
+        box_coords = self.convert_box_coords(boxes, height, width)
+
         font = ImageFont.truetype(font=os.path.join(self.package_root_path,'config/FiraMono-Medium.otf'),
                                   size=np.floor(3e-2 * pil_image.size[1] + 0.5).astype('int32'))
         thickness = (pil_image.size[0] + pil_image.size[1]) // 300
@@ -76,56 +102,33 @@ class SSDTLClassifier(TLClassifier):
             text_origin = np.array([left, top + 1])
 
         for j in range(thickness):
-            draw.rectangle(
-                [left + j, top + j, right - j, bottom - j],
-                outline=self.labels_dict[c])
-        draw.rectangle(
-            [tuple(text_origin), tuple(text_origin + label_size)],
-            fill=self.labels_dict[c])
+            draw.rectangle([left + j, top + j, right - j, bottom - j], outline=self.labels_dict[c])
+
+        draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.labels_dict[c])
+
         draw.text(text_origin, label, fill=(0, 0, 0), font=font)
-        del draw
         return np.asarray(pil_image)
-
-    @staticmethod
-    def load_graph(graph_file):
-        """Loads a frozen inference graph"""
-        graph = tf.Graph()
-        with graph.as_default():
-            od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(graph_file, 'rb') as fid:
-                serialized_graph = fid.read()
-                od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
-
-        return graph
 
     def _classify(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (300, 300))
-        image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
+        image_resized = cv2.resize(image, (300, 300))
+        image_np = np.expand_dims(np.asarray(image_resized, dtype=np.uint8), 0)
+
         # Actual detection
-        (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
-                                                 feed_dict={self.image_tensor: image_np})
+        (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores,
+                                                  self.detection_classes], feed_dict={self.image_tensor: image_np})
 
         # Remove unnecessary dimensions
         boxes = np.squeeze(boxes)
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
 
-        n = len(classes)
-        idxs = []
-        for i in range(n):
-            if scores[i] >= self.confidence:
-                idxs.append(i)
-
-        boxes = boxes[idxs, ...]
-        scores = scores[idxs, ...]
-        classes = classes[idxs, ...]
+        boxes, scores, classes = self.filter_boxes(boxes, scores, classes)
 
         for i, c in enumerate(classes):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[c], str(scores[i]))
 
-        if len(scores) == 0:
+        if len(classes) == 0:
             traffic_light = TrafficLight.UNKNOWN
         else:
             i = np.argmax(scores)
@@ -140,9 +143,8 @@ class SSDTLClassifier(TLClassifier):
 
         if self.is_debug:
             # create a debug image with bounding boxes and labels
-            debug_image = self._get_debug_image(image, boxes, classes, scores)
+            debug_image = self._get_debug_image(image, boxes, scores, classes)
             return traffic_light, debug_image
-
         return traffic_light, None
 
     @abstractmethod
