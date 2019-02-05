@@ -4,13 +4,17 @@ import rospkg
 
 import tensorflow as tf
 import numpy as np
+import cv2
+
+from abc import ABCMeta, abstractmethod
 
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
 
 
-@TLClassifier.register_subclass("ssd")
 class SSDTLClassifier(TLClassifier):
+
+    __metaclass__ = ABCMeta
 
     def get_state_count_threshold(self, last_state):
         if last_state == TrafficLight.RED:
@@ -34,6 +38,7 @@ class SSDTLClassifier(TLClassifier):
         return graph
 
     def _classify(self, image):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_np = np.expand_dims(np.asarray(image, dtype=np.uint8), 0)
         # Actual detection
         (boxes, scores, classes) = self.sess.run([self.detection_boxes, self.detection_scores, self.detection_classes],
@@ -45,18 +50,24 @@ class SSDTLClassifier(TLClassifier):
 
         for i, clazz in enumerate(classes):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[classes[i]], str(scores[i]))
-            # if red or yellow light with confidence more than 10%
-            if (clazz == 2 or clazz == 3) and scores[i] > 0.1:
+            # if red or yellow light with score more than confidence threshold
+            if (clazz == 2) and scores[i] > self.confidence:
                 return TrafficLight.RED, None
+            if (clazz == 3) and scores[i] > self.confidence:
+                return TrafficLight.YELLOW, None
 
         return TrafficLight.UNKNOWN, None
 
-    def __init__(self, is_debug):
+    @abstractmethod
+    def __init__(self, is_debug, model_path, confidence):
         super(SSDTLClassifier, self).__init__(self.__class__.__name__, is_debug)
 
         # Model path
         package_root_path = rospkg.RosPack().get_path('tl_detector')
-        model_path = os.path.join(package_root_path, 'models/ssd.pb')
+        model_path = os.path.join(package_root_path, model_path)
+
+        # Set confidence
+        self.confidence = confidence
 
         # Labels dictionary
         self.labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow', 4: 'Unknown'}
@@ -72,3 +83,17 @@ class SSDTLClassifier(TLClassifier):
 
         # Create session
         self.sess = tf.Session(graph=self.detection_graph)
+
+
+@TLClassifier.register_subclass('ssd-sim')
+class SSDSimTLClassifier(SSDTLClassifier):
+
+    def __init__(self, is_debug):
+        super(SSDSimTLClassifier, self).__init__(is_debug, 'models/ssd-sim.pb', 0.8)
+
+
+@TLClassifier.register_subclass('ssd-real')
+class SSDRealTLClassifier(SSDTLClassifier):
+
+    def __init__(self, is_debug):
+        super(SSDRealTLClassifier, self).__init__(is_debug, 'models/ssd-real.pb', 0.5)
