@@ -79,34 +79,33 @@ class SSDTLClassifier(TLClassifier):
                                   size=np.floor(3e-2 * pil_image.size[1] + 0.5).astype('int32'))
         thickness = (pil_image.size[0] + pil_image.size[1]) // 300
 
-        i = np.argmax(scores)
-        score = scores[i]
-        c = classes[i]
-        predicted_class = self.labels_dict[c]
-        box = box_coords[i]
-
         draw = ImageDraw.Draw(pil_image)
 
-        label = '{} {:.2f}'.format(predicted_class, score)
-        label_size = draw.textsize(label, font)
+        for i, c in enumerate(classes):
+            score = scores[i]
+            predicted_class = self.labels_dict[c]
+            box = box_coords[i]
 
-        top, left, bottom, right = box
-        top = max(0, np.floor(top + 0.5).astype('int32'))
-        left = max(0, np.floor(left + 0.5).astype('int32'))
-        bottom = min(pil_image.size[1], np.floor(bottom + 0.5).astype('int32'))
-        right = min(pil_image.size[0], np.floor(right + 0.5).astype('int32'))
+            label = '{} {:.2f}'.format(predicted_class, score)
+            label_size = draw.textsize(label, font)
 
-        if top - label_size[1] >= 0:
-            text_origin = np.array([left, top - label_size[1]])
-        else:
-            text_origin = np.array([left, top + 1])
+            top, left, bottom, right = box
+            top = max(0, np.floor(top + 0.5).astype('int32'))
+            left = max(0, np.floor(left + 0.5).astype('int32'))
+            bottom = min(pil_image.size[1], np.floor(bottom + 0.5).astype('int32'))
+            right = min(pil_image.size[0], np.floor(right + 0.5).astype('int32'))
 
-        for j in range(thickness):
-            draw.rectangle([left + j, top + j, right - j, bottom - j], outline=self.labels_dict[c])
+            if top - label_size[1] >= 0:
+                text_origin = np.array([left, top - label_size[1]])
+            else:
+                text_origin = np.array([left, top + 1])
 
-        draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.labels_dict[c])
+            for j in range(thickness):
+                draw.rectangle([left + j, top + j, right - j, bottom - j], outline=self.labels_dict[c])
 
-        draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+            draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.labels_dict[c])
+
+            draw.text(text_origin, label, fill=(0, 0, 0), font=font)
         return np.asarray(pil_image)
 
     def _classify(self, image):
