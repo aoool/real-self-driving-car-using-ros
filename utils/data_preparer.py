@@ -37,6 +37,7 @@ import yaml
 import uuid
 import cv2
 import random
+import math
 import numpy as np
 import imgaug as ia
 from imgaug import augmenters as iaa
@@ -151,8 +152,6 @@ class BoschSmallTrafficLightsDataset(Dataset):
 
     def __init__(self):
         super(BoschSmallTrafficLightsDataset, self).__init__('bosch_small_traffic_lights')
-        self._labels = "train.yaml"
-
         self.label_set = {'GreenLeft', 'RedStraightLeft', 'GreenRight', 'GreenStraightLeft', 'RedStraight',
                           'GreenStraightRight', 'Green', 'GreenStraight', 'RedLeft', 'Yellow', 'RedRight', 'Red'}
 
@@ -172,7 +171,13 @@ class BoschSmallTrafficLightsDataset(Dataset):
             raise ValueError("unknown label name: " + name)
 
     def get_all_labels(self, input_dir):
-        with open(os.path.join(input_dir, self._labels)) as f:
+        paths = glob(os.path.join(input_dir, "*.yaml"))
+        if not paths:
+            raise FileNotFoundError("no labels file found in " + input_dir)
+        if len(paths) > 1:
+            raise RuntimeError("there are more than 1 labels files in " + input_dir + " directory: " + str(paths))
+        path = paths[0]
+        with open(path) as f:
             labels = yaml.safe_load(f)
         return labels
 
@@ -268,7 +273,12 @@ class VatsalSrivastavaTrafficLightsDataset(Dataset):
             raise ValueError("unknown label name: " + name)
 
     def get_all_labels(self, input_dir):
-        path = glob(os.path.join(input_dir, "*.yaml"))[0]
+        paths = glob(os.path.join(input_dir, "*.yaml"))
+        if not paths:
+            raise FileNotFoundError("no labels file found in " + input_dir)
+        if len(paths) > 1:
+            raise RuntimeError("there are more than 1 labels files in " + input_dir + " directory: " + str(paths))
+        path = paths[0]
         with open(path) as f:
             labels = yaml.safe_load(f)
         return labels
@@ -435,7 +445,7 @@ class DataPreparer:
     resulting (output) dataset. Assume that after the filtering there are N samples left. All these N images will be
     present in the output dataset. Additionally, if a user specifies any additional transformation, except `--resize`,
     the size of the output dataset increases by N transformed images. If `--fliplr` and `--scale` options are
-    specified together, the size of the resulting dataset will be 3*N.
+    specified together, the size of the resulting dataset will be 4*N.
 
     If the `--balance` option is specified, the number of images with RED, YELLOW, and GREEN traffic lights will
     be equalized and the number of samples with no traffic lights will be len(RED) + len(YELLOW) + len(GREEN), that is,
@@ -680,11 +690,18 @@ class DataPreparer:
 
         max_between_classes = max(red_counter, yellow_counter, green_counter)
         if nolight_counter > 3 * max_between_classes:
-            val = nolight_counter // 3
-            target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt = val, val, val, nolight_counter
-        else:
-            target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt = \
-                max_between_classes, max_between_classes, max_between_classes, 3*max_between_classes
+            max_between_classes = math.ceil(float(nolight_counter) / 3.0)
+        if self.balance != -1:
+            if self.balance < max_between_classes:
+                raise RuntimeError("the requested number of samples per class for balancing---" + str(self.balance)
+                                   + "---is less than maximum number of samples per class generated during "
+                                   "the first stage---" + str(max_between_classes) + "; please specify --balance "
+                                   "argument that is greater than or equal to " + str(max_between_classes))
+            else:
+                max_between_classes = self.balance
+
+        target_red_cnt, target_yellow_cnt, target_green_cnt, target_nolight_cnt = \
+            max_between_classes, max_between_classes, max_between_classes, 3*max_between_classes
 
         red_entries = [random.choice(self._get_entries_containing_label(self.dataset.get_red_label()))
                        for _ in range(target_red_cnt - red_counter)]
@@ -784,6 +801,19 @@ class DataPreparer:
         return red_counter, yellow_counter, green_counter, nolight_counter
 
     def _write_statistics(self, red_counter, yellow_counter, green_counter, nolight_counter):
+        total_counter = red_counter + yellow_counter + green_counter + nolight_counter
+        # write counters to statistics file
+        stat_info = "red:     %d\n" \
+                    "yellow:  %d\n" \
+                    "green:   %d\n" \
+                    "nolight: %d\n" \
+                    "total:   %d\n" % (red_counter, yellow_counter, green_counter, nolight_counter, total_counter)
+        print('DATASET STATISTICS:')
+        print(stat_info)
+        with open(self.dataset.get_statistics_file_name(self.output_dir), 'w+') as f_stat:
+            f_stat.write(stat_info)
+
+    def _update_counters_with_info_from_statictics(self, red_counter, yellow_counter, green_counter, nolight_counter):
         # update counters in accordance with what already in the statistics file
         if os.path.exists(self.dataset.get_statistics_file_name(self.output_dir)):
             with open(self.dataset.get_statistics_file_name(self.output_dir), 'r') as f_stat:
@@ -801,18 +831,7 @@ class DataPreparer:
                 elif not line.startswith("total"):
                     raise IOError('file ' + self.dataset.get_statistics_file_name(self.output_dir)
                                   + ' has a content of unknown format')
-
-        total_counter = red_counter + yellow_counter + green_counter + nolight_counter
-        # write counters to statistics file
-        stat_info = "red:     %d\n" \
-                    "yellow:  %d\n" \
-                    "green:   %d\n" \
-                    "nolight: %d\n" \
-                    "total:   %d\n" % (red_counter, yellow_counter, green_counter, nolight_counter, total_counter)
-        print('DATASET STATISTICS:')
-        print(stat_info)
-        with open(self.dataset.get_statistics_file_name(self.output_dir), 'w+') as f_stat:
-            f_stat.write(stat_info)
+        return red_counter, yellow_counter, green_counter, nolight_counter
 
     def prepare(self):
         if self.original_labels is None:
@@ -822,8 +841,11 @@ class DataPreparer:
         print("Entries in original dataset:", len(self.original_labels))
         print("Entries in filtered dataset", len(filtered_labels))
 
-        if self.pick > 1:
-            filtered_labels = random.sample(filtered_labels, self.pick)
+        if self.pick is None:
+            self.pick = len(filtered_labels)
+
+        # either pick the specified number of samples or just shuffle labels if `--pick` was not specified
+        filtered_labels = random.sample(filtered_labels, self.pick)
 
         red_counter, yellow_counter, green_counter, nolight_counter = \
             self._process_data(self.transforms, filtered_labels)
@@ -838,7 +860,9 @@ class DataPreparer:
         print('DURING THIS RUN IDENTIFIED:')
         print(stat_info)
 
-        if self.balance:
+        red_counter, yellow_counter, green_counter, nolight_counter = \
+            self._update_counters_with_info_from_statictics(red_counter, yellow_counter, green_counter, nolight_counter)
+        if self.balance is not None:
             red_counter, yellow_counter, green_counter, nolight_counter = \
                 self._balance_dataset(red_counter, yellow_counter, green_counter, nolight_counter)
 
@@ -898,9 +922,9 @@ Label formats:
     parser.add_argument('--scale', action='store_true',
                         help="apply imgaug.Affine(scale=0.7) function "
                              "(scale image, keeping original image shape); dataset size will x2 in size")
-    parser.add_argument('--balance', action='store_true',
+    parser.add_argument('--balance', action='store', nargs='?', default=None, const=-1, type=int,
                         help="balance dataset, so that there is an equal number of representatives of each class")
-    parser.add_argument('--pick', action='store', type=int, default=1, metavar='N',
+    parser.add_argument('--pick', action='store', type=int, default=None, metavar='N',
                         help="picks N images from the original dataset in accordance with uniform distribution "
                              "and ignores other images")
     parser.add_argument('--resize', action='store', nargs=2, type=int, metavar=('H', 'W'), default=None,
