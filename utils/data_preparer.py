@@ -922,8 +922,13 @@ Label formats:
     parser.add_argument('--scale', action='store_true',
                         help="apply imgaug.Affine(scale=0.7) function "
                              "(scale image, keeping original image shape); dataset size will x2 in size")
-    parser.add_argument('--balance', action='store', nargs='?', default=None, const=-1, type=int,
-                        help="balance dataset, so that there is an equal number of representatives of each class")
+    parser.add_argument('--balance', action='store', nargs='?', default=None, const=-1, type=int, metavar='B',
+                        help="balance dataset, so that there is an equal number of representatives of each class; "
+                             "when no argument is provided, the number of elements per RED, YELLOW, GREEN classes "
+                             "are made equal to the maximum number of elements per class after the first processing "
+                             "stage, i.e., before balancing; if B argument is provided, the number of samples per "
+                             "RED, YELLOW, and GREEN classes are made equal to B; number of instances for NO_LIGHT "
+                             "class is made equal to 3*B")
     parser.add_argument('--pick', action='store', type=int, default=None, metavar='N',
                         help="picks N images from the original dataset in accordance with uniform distribution "
                              "and ignores other images")
