@@ -5,10 +5,9 @@ import rospkg
 import tensorflow as tf
 import numpy as np
 import cv2
+
 from PIL import Image, ImageFont, ImageDraw
-
 from abc import ABCMeta, abstractmethod
-
 from styx_msgs.msg import TrafficLight
 from light_classification.tl_classifier import TLClassifier
 
@@ -25,7 +24,7 @@ class SSDTLClassifier(TLClassifier):
         return 1
 
     @staticmethod
-    def convert_box_coords(boxes, height, width):
+    def _convert_box_coords(boxes, height, width):
         """
         Converts bounding boxes from normalized
         coordinates (0 to 1), to image coordinates
@@ -38,7 +37,7 @@ class SSDTLClassifier(TLClassifier):
         return box_coords
 
     @staticmethod
-    def load_graph(graph_file):
+    def _load_graph(graph_file):
         """Loads a frozen inference graph"""
         graph = tf.Graph()
         with graph.as_default():
@@ -49,7 +48,7 @@ class SSDTLClassifier(TLClassifier):
                 tf.import_graph_def(od_graph_def, name='')
         return graph
 
-    def filter_boxes(self, boxes, scores, classes):
+    def _filter_boxes(self, boxes, scores, classes):
         """
         Filters boxes with scores less than
         confidence threshold
@@ -67,13 +66,13 @@ class SSDTLClassifier(TLClassifier):
 
     def _get_debug_image(self, image, boxes, scores, classes):
         """Draws detected bounding boxes"""
-        if len(classes) == 0:
+        if classes.size == 0:
             return image
 
         pil_image = Image.fromarray(image)
         width, height = pil_image.size
 
-        box_coords = self.convert_box_coords(boxes, height, width)
+        box_coords = self._convert_box_coords(boxes, height, width)
 
         font = ImageFont.truetype(font=os.path.join(self.package_root_path,'config/FiraMono-Medium.otf'),
                                   size=np.floor(3e-2 * pil_image.size[1] + 0.5).astype('int32'))
@@ -122,12 +121,12 @@ class SSDTLClassifier(TLClassifier):
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
 
-        boxes, scores, classes = self.filter_boxes(boxes, scores, classes)
+        boxes, scores, classes = self._filter_boxes(boxes, scores, classes)
 
         for i, c in enumerate(classes):
             rospy.logdebug('class = %s, score = %s', self.labels_dict[c], str(scores[i]))
 
-        if len(classes) == 0:
+        if classes.size == 0:
             traffic_light = TrafficLight.UNKNOWN
         else:
             i = np.argmax(scores)
@@ -161,7 +160,7 @@ class SSDTLClassifier(TLClassifier):
         self.labels_dict = {1: 'Green', 2: 'Red', 3: 'Yellow', 4: 'Unknown'}
 
         # Load frozen graph of trained model
-        self.detection_graph = self.load_graph(model_path)
+        self.detection_graph = self._load_graph(model_path)
 
         # Get tensors
         self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
