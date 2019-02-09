@@ -65,11 +65,11 @@ Sample dataset for simulator images
 ![simulator training images](report/sim_visualization.png)
 
 * The configuration parameters for retraining was: 
-** num_classes: 3.
-** fixed_shape_resizer: 300x300, to reduce training time, since using larger image sizes during training didn't seem to increase the inference accuracy.
-** Dropout: True.
-** batch_size: 24.
-** num_steps: 20000, which experimentally proved to lead to good results.
+    * num_classes: 3.
+    * fixed_shape_resizer: 300x300, to reduce training time, since using larger image sizes during training didn't seem to increase the inference accuracy.
+    * Dropout: True.
+    * batch_size: 24.
+    * num_steps: 20000, which experimentally proved to lead to good results.
 * The training took around 3.5 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), and the final training loss was around 2.x.
 * The retraining of the model lead to very good results; confidence levels reaching up to 0.999 even when the car is very far away from the traffic light:
 
@@ -92,10 +92,10 @@ Here is a sample of the dataset.
 ![Udacity Test Site training images](report/udacity_visualization.png)
 
 * The configuration parameters for retraining was: 
-** num_classes: 3.
-** fixed_shape_resizer: 300x300.
-** Dropout: True.
-** batch_size: 24.
+    * num_classes: 3.
+    * fixed_shape_resizer: 300x300.
+    * Dropout: True.
+    * batch_size: 24.
 ** num_steps: 100000, here we increased the number of steps, since each step processes (batch_size) images, so for example if we double the number of samples in the dataset, we will need to double the number of steps to achieve the same number of epochs, each epoch requires = (no. samples / batch_size) steps, and in this combined dataset we had around 22,000 samples/images.
 * The training took around 18 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), and the final training loss was around 1.x.
 * The results were good reaching to a confidence of 1.0 most of the time, but in some instances the model completely fails specially when the traffic light is very close to the camera.
