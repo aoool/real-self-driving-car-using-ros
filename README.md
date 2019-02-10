@@ -56,22 +56,32 @@ While there are teams who approached it as 2 separate problems to be solved,
 recent advancements in Deep Learning has developed models that attempt to solve both at once.
 For example, SSD (Single Shot Multibox Detection) and YOLO (You Only Look Once).
 ### Simulator (Highway) --- SSD Approach
-Here we experimented with Tensorflow Object Detection API, using pretrained models on COCO dataset, such as: "ssd_inception_v2_coco" and "ssd_mobilenet_v2_coco":
-* Testing the coco pretrained models without retraining on simulator images didn't lead to any success, since the simulated traffic lights look very different from real traffic lights, and hence we concluded, that if we were going to use this approach on the simulator, we would need a different model specifically retrained on the simulator images. 
-* So we decided to utilize transfer learning, and retrain the models on images extracted from the simulator, using 3 classes/labels only; Red, Yellow and Green.
-* We choose the "ssd_inception_v2_coco model", since it proved to be a good compromise between speed and accuracy, and retrained it on the simulator images dataset provided by Alex Lechner [here](https://github.com/alex-lechner/Traffic-Light-Classification/blob/master/README.md#1-the-lazy-approach).
+Here we experimented with Tensorflow Object Detection API, using pretrained models on COCO dataset, such as:
+"ssd_inception_v2_coco" and "ssd_mobilenet_v2_coco":
+* Testing the coco pretrained models without retraining on simulator images didn't lead to any success, 
+since the simulated traffic lights look very different from real traffic lights, and hence we concluded, 
+that if we were going to use this approach on the simulator, we would need a different model specifically
+retrained on the simulator images. 
+* So we decided to utilize transfer learning, and retrain the models on images extracted from the simulator, 
+using 3 classes/labels only; Red, Yellow and Green.
+* We choose the "ssd_inception_v2_coco model", since it proved to be a good compromise between speed and accuracy, 
+and retrained it on the simulator images dataset provided by Alex Lechner
+[here](https://github.com/alex-lechner/Traffic-Light-Classification/blob/master/README.md#1-the-lazy-approach).
 
 Sample dataset for simulator images
 ![simulator training images](report/sim_visualization.png)
 
 * The configuration parameters for retraining was: 
     * num_classes: 3.
-    * fixed_shape_resizer: 300x300, to reduce training time, since using larger image sizes during training didn't seem to increase the inference accuracy.
+    * fixed_shape_resizer: 300x300, to reduce training time, since using larger image sizes during
+training didn't seem to increase the inference accuracy.
     * Dropout: True.
     * batch_size: 24.
     * num_steps: 20000, which experimentally proved to lead to good results.
-* The training took around 3.5 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), and the final training loss was around 2.x.
-* The retraining of the model lead to very good results; confidence levels reaching up to 0.999 even when the car is very far away from the traffic light:
+* The training took around 3.5 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), 
+and the final training loss was around 2.x.
+* The retraining of the model lead to very good results; confidence levels reaching up to 0.999
+even when the car is very far away from the traffic light:
 
 Here are the results of our trained model.
 ![simulator inference 1](report/sim_1.png)
@@ -80,14 +90,24 @@ Here are the results of our trained model.
 #### Pros
 * This approach is very accurate.
 * It can detect all 3 colors; Red, Yellow & Green, with great confidence.
-* It can pinpoint the exact position and size of the lights, which can be further utilized for accurately calculating the stopping line position.
+* It can pinpoint the exact position and size of the lights, which can be further utilized
+for accurately calculating the stopping line position.
 
 #### Cons
 * It's slower than OpenCV method.
 
 ### Real World (Test Lot) --- SSD Approach
-* We tested the pretrained models without retraining, on real world images from the ROS bags provided by Udacity, which led to some success, since COCO dataset already has a Traffic Light class (No.10), however it was a limited success since the ROS bags images had unusual lighting; very bright in some cases, and often the 3 light colors were not distinguishable from one another and all looked somewhat yellow.
-* Similarly we opted for retraining the "ssd_inception_v2_coco" model, but this time we compiled our own dataset, since datasets found online didn't lead to good enough results, so we labeled images from 3 different ROS bags provided by Udacity and added images from Bosch Small Traffic Lights Dataset [here](https://hci.iwr.uni-heidelberg.de/node/6132), which helped the model generalize better, and increased the detection confidence specially for instances when the traffic light was far away, since most images in the ROS bags have the traffic light in close proximity.
+* We tested the pretrained models without retraining, on real world images from the ROS bags
+provided by Udacity, which led to some success, since COCO dataset already has a Traffic Light
+class (No.10), however it was a limited success since the ROS bags images had unusual lighting;
+very bright in some cases, and often the 3 light colors were not distinguishable from one another
+and all looked somewhat yellow.
+* Similarly we opted for retraining the "ssd_inception_v2_coco" model, but this time we compiled
+our own dataset, since datasets found online didn't lead to good enough results, so we labeled
+images from 3 different ROS bags provided by Udacity and added images from Bosch Small Traffic Lights
+Dataset [here](https://hci.iwr.uni-heidelberg.de/node/6132), which helped the model generalize better, 
+and increased the detection confidence specially for instances when the traffic light was far away, 
+since most images in the ROS bags have the traffic light in close proximity.
 
 Here is a sample of the dataset.
 ![Udacity Test Site training images](report/udacity_visualization.png)
@@ -97,9 +117,14 @@ Here is a sample of the dataset.
     * fixed_shape_resizer: 300x300.
     * Dropout: True.
     * batch_size: 24.
-** num_steps: 100000, here we increased the number of steps, since each step processes batch_size images, so for example if we double the number of samples in the dataset, we will need to double the number of steps to achieve the same number of epochs, each epoch requires = (no. samples / batch_size) steps, and in this combined dataset we had around 22,000 samples/images.
-* The training took around 18 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), and the final training loss was around 1.x.
-* The results were good reaching to a confidence of 1.0 most of the time, but in some instances the model completely fails specially when the traffic light is very close to the camera.
+    * num_steps: 100000, here we increased the number of steps, since each step processesbatch_size images, 
+so for example if we double the number of samples in the dataset, we will need to double the number of steps 
+to achieve the same number of epochs, each epoch requires = (no. samples / batch_size) steps, and in this 
+combined dataset we had around 22,000 samples/images.
+* The training took around 18 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), 
+and the final training loss was around 1.x.
+* The results were good reaching to a confidence of 1.0 most of the time, but in some instances 
+the model completely fails specially when the traffic light is very close to the camera.
 
 Here are the results of our trained model.
 ![real inference 1](report/real_1.png)
@@ -108,11 +133,13 @@ Here are the results of our trained model.
 #### Pros
 * This approach is accurate in most cases.
 * It can detect all 3 colors; Red, Yellow & Green, with great confidence.
-* It can pinpoint the exact position and size of the lights, which can be further utilized for accurately calculating the stopping line position.
+* It can pinpoint the exact position and size of the lights, which can be further utilized 
+for accurately calculating the stopping line position.
 
 #### Cons
 * It's not very fast, the FPS when running the ROS bag was averaging 15 FPS.
-* It requires a very large dataset including images of different lighting conditions, different distances from the lights, etc, in order to be reliable.
+* It requires a very large dataset including images of different lighting conditions, 
+different distances from the lights, etc, in order to be reliable.
 
 ### Real World (Test Lot) --- YOLOv3-tiny (You Only Look Once)
 We used this approach for real world.
