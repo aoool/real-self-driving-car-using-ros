@@ -74,7 +74,8 @@ Sample dataset for simulator images
 * The retraining of the model lead to very good results; confidence levels reaching up to 0.999 even when the car is very far away from the traffic light:
 
 Here are the results of our trained model.
-(Insert image here!)
+![simulator inference 1](report/sim_1.png)
+![simulator inference 2](report/sim_2.png)
 
 #### Pros
 * This approach is very accurate.
@@ -82,10 +83,10 @@ Here are the results of our trained model.
 * It can pinpoint the exact position and size of the lights, which can be further utilized for accurately calculating the stopping line position.
 
 #### Cons
-* It's not very fast, simulator FPS was limited to 10 FPS on average.
+* It's slower than OpenCV method.
 
 ### Real World (Test Lot) --- SSD Approach
-* We tested the pretrained models without retraining, on real world images from the ROS bags provided by Udacity, which lead to some success, since COCO dataset already has a Traffic Light class (No.10), however it was a limited success since the ROS bags images had unusual lighting; very bright in some cases, and often the 3 light colors were not distinguishable from one another and all looked somewhat yellow.
+* We tested the pretrained models without retraining, on real world images from the ROS bags provided by Udacity, which led to some success, since COCO dataset already has a Traffic Light class (No.10), however it was a limited success since the ROS bags images had unusual lighting; very bright in some cases, and often the 3 light colors were not distinguishable from one another and all looked somewhat yellow.
 * Similarly we opted for retraining the "ssd_inception_v2_coco" model, but this time we compiled our own dataset, since datasets found online didn't lead to good enough results, so we labeled images from 3 different ROS bags provided by Udacity and added images from Bosch Small Traffic Lights Dataset [here](https://hci.iwr.uni-heidelberg.de/node/6132), which helped the model generalize better, and increased the detection confidence specially for instances when the traffic light was far away, since most images in the ROS bags have the traffic light in close proximity.
 
 Here is a sample of the dataset.
@@ -96,12 +97,13 @@ Here is a sample of the dataset.
     * fixed_shape_resizer: 300x300.
     * Dropout: True.
     * batch_size: 24.
-** num_steps: 100000, here we increased the number of steps, since each step processes (batch_size) images, so for example if we double the number of samples in the dataset, we will need to double the number of steps to achieve the same number of epochs, each epoch requires = (no. samples / batch_size) steps, and in this combined dataset we had around 22,000 samples/images.
+** num_steps: 100000, here we increased the number of steps, since each step processes batch_size images, so for example if we double the number of samples in the dataset, we will need to double the number of steps to achieve the same number of epochs, each epoch requires = (no. samples / batch_size) steps, and in this combined dataset we had around 22,000 samples/images.
 * The training took around 18 hours on an NVIDIA GTX 1070 (tensorflow-gpu == 1.4.0), and the final training loss was around 1.x.
 * The results were good reaching to a confidence of 1.0 most of the time, but in some instances the model completely fails specially when the traffic light is very close to the camera.
 
 Here are the results of our trained model.
-(Insert image here!)
+![real inference 1](report/real_1.png)
+![real inference 2](report/real_2.png)
 
 #### Pros
 * This approach is accurate in most cases.
@@ -109,7 +111,7 @@ Here are the results of our trained model.
 * It can pinpoint the exact position and size of the lights, which can be further utilized for accurately calculating the stopping line position.
 
 #### Cons
-* It's not very fast, the FPS when running the ROS bag was averaging 10 FPS.
+* It's not very fast, the FPS when running the ROS bag was averaging 15 FPS.
 * It requires a very large dataset including images of different lighting conditions, different distances from the lights, etc, in order to be reliable.
 
 ### Real World (Test Lot) --- YOLOv3-tiny (You Only Look Once)
