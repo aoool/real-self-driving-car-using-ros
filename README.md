@@ -127,13 +127,13 @@ the [Image Collection](#image-collection) section. The archive is called "4Tzone
 is licensed under the
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
 license.
-|                        |  4Tzones Traffic Lights Videos   |  
-|------------------------|    :------------------------:    |  
-| Link                   | https://yadi.sk/d/DhyGqahR-NWtEA |
-| License                | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
-| [traffic_lights.bag](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic_light_bag_file.zip)   | traffic_lights.mp4          |  
-| [just_traffic_light.bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing)      | just_traffic_light.mp4      |  
-| [loop_with_traffic_light.bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing) | loop_with_traffic_light.mp4 |   
+|                        |  4Tzones Traffic Lights Videos   |    
+|------------------------|    :------------------------:    |    
+| Link                   | https://yadi.sk/d/DhyGqahR-NWtEA |  
+| License                | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |  
+| [traffic_lights.bag](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic_light_bag_file.zip)   | traffic_lights.mp4          |    
+| [just_traffic_light.bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing)      | just_traffic_light.mp4      |    
+| [loop_with_traffic_light.bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing) | loop_with_traffic_light.mp4 |    
 
 
 #### Image Annotation
