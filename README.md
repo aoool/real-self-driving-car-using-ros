@@ -127,6 +127,7 @@ the [Image Collection](#image-collection) section. The archive is called "4Tzone
 is licensed under the
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
 license.
+
 |                        |  4Tzones Traffic Lights Videos   |    
 |------------------------|    :------------------------:    |    
 | Link                   | https://yadi.sk/d/DhyGqahR-NWtEA |  
