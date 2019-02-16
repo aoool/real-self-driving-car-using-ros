@@ -15,7 +15,7 @@
 
 All team members contributed equally to the project.
 
-*4Tzones* means "Four Time Zones," indicating that team members were located in 4 different time zones 
+*4Tzones* means "Four Time Zones" indicating that team members were located in 4 different time zones 
 while working on this project. The time zones range from UTC+1 to UTC+8.
 
 
@@ -126,7 +126,7 @@ Below is a video archive containing 3 videos, each corresponding to one of the R
 the [Image Collection](#image-collection) section. The archive is called "4Tzones Traffic Lights Videos" and 
 is licensed under the
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
-license.  
+license.
 |                        |  4Tzones Traffic Lights Videos   |  
 |------------------------|    :------------------------:    |  
 | Link                   | https://yadi.sk/d/DhyGqahR-NWtEA |
