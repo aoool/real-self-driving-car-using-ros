@@ -112,7 +112,7 @@ we:
 
 
 #### Video Creation
-Images extracted from the ROS bags in the [Image Extraction](#image-extraction) step can be converted to videos
+We extracted images from the ROS bags in the [Image Extraction](#image-extraction) step and converted them to videos
 following the instructions from 
 [How to export image and video data from a bag file](http://wiki.ros.org/rosbag/Tutorials/Exporting%20image%20and%20video%20data).  
 We:  
@@ -159,7 +159,7 @@ license.
 We removed all images that are ambiguous, e.g., two traffic light bulbs are simultaneously ON, 
 or the image border partially cuts traffic light.  
 
-\*\*\* It will take about 3 hours of continuous work for one person to label images from all three ROS bags
+\*\*\* It takes about 3 hours of continuous work for one person to label images from all three ROS bags
 using [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark)
 given that he has a decent monitor and mouse.  
 
@@ -169,18 +169,19 @@ We tried different neural networks for traffic lights detection and classificati
 obtained during the [Image Annotation](#image-annotation) step. Models trained on these data did not perform well
 enough on similar but previously unseen images. The [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A) 
 is just not good enough to enable the neural network generalization capability. 
-It is not balanced in different aspects. That is, the number of samples per class are not equal; the majority of
-red traffic light images are captured from the far distance; on all the traffic light images containing close 
-view of the traffic light, the traffic light position is biased to the left, etc. After several trial and error
-attempts it was obvious that we need to augment the dataset. Moreover, for different models we used different 
+The dataset is unbalanced in different aspects. That is, the number of samples per class is not equal to each other; 
+the majority of red traffic light images are captured from the far distance; on all the traffic light images 
+containing a close view of the traffic light, the traffic light position is biased to the left, and in other aspects. 
+After several trial and error attempts, it was obvious that we need to augment the dataset. 
+Moreover, for different models we used different 
 training code, that is, for YOLO-tiny model we used code from the 
 [keras-yolo3](https://github.com/qqwweee/keras-yolo3) repository with minor modifications and for SSD models we used the 
 [TensorFlow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection).
-Both training scripts accept different labels format and we needed to convert 
+Both training scripts accept different labels format, and we needed to convert 
 [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) annotations to those other formats. To accomplish these
 image augmentation and label conversion tasks we have created a [`data_preparer.py`](utils/data_preparer.py).
 With this script, we easily augmented the [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A),
-which enabled the ability to generalise in our models. 
+which enabled the ability to generalize in our models. 
 More about the [`data_preparer.py`](utils/data_preparer.py) script is in 
 the [Data Preparer Script](#data-preparer-script) section. The resulting annotated augmented dataset,
 which is called "4Tzones Traffic Lights Augmented Dataset" can be downloaded using the link below and 
@@ -197,8 +198,8 @@ license.
 | Green TL # of Samples  | 1998                                       |  
 | No TL # of Samples     | 5994                                       |  
 
-\* Notice that the number of samples of red, yellow, and green traffic lights are equal and the number of samples
-of images without traffic lights is a triple of that. Such a balancing of the dataset is suggested in the
+\* Notice that the number of samples of red, yellow, and green traffic lights is equal to each other and the number of 
+samples of images without traffic lights is a triple of that. Such a balancing of the dataset is suggested in the
 [How to improve object detection](https://github.com/AlexeyAB/darknet#how-to-improve-object-detection)
 section of README file from [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet) 
 repository by [AlexeyAB](https://github.com/AlexeyAB).  
@@ -278,9 +279,16 @@ optional arguments:
   --dataset {bosch_small_traffic_lights,vatsal_srivastava_traffic_lights,yolo_mark}
                         dataset name
   --fliplr              apply imgaug.Fliplr function (flip horizontally) to all images; dataset size will x2 in size
-  --scale               apply imgaug.Affine(scale=0.7) function (scale image, keeping original image shape); dataset size will x2 in size
-  --balance [B]         balance dataset, so that there is an equal number of representatives of each class; when no argument is provided, the number of elements per RED, YELLOW, GREEN classes are made equal to the maximum number of elements per class after the first processing stage, i.e., before balancing; if B argument is provided, the number of samples per RED, YELLOW, and GREEN classes are made equal to B; number of instances for NO_LIGHT class is made equal to 3*B
-  --pick N              picks N images from the original dataset in accordance with uniform distribution and ignores other images
+  --scale               apply imgaug.Affine(scale=0.7) function (scale image, keeping original image shape); 
+                        dataset size will x2 in size
+  --balance [B]         balance dataset, so that there is an equal number of representatives of each class; 
+                        when no argument is provided, the number of elements per RED, YELLOW, GREEN classes 
+                        are made equal to the maximum number of elements per class after the first processing stage, 
+                        i.e., before balancing; if B argument is provided, the number of samples per 
+                        RED, YELLOW, and GREEN classes are made equal to B; number of instances for NO_LIGHT class 
+                        is made equal to 3*B
+  --pick N              picks N images from the original dataset in accordance with uniform distribution 
+                        and ignores other images
   --resize H W          resize all images to the specified height and width; aspect ratio is not preserved
   --input-dir DIR       dataset's root directory
   --output-dir DIR      directory to store prepared images and labels
