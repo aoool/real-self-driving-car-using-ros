@@ -188,7 +188,8 @@ the [Data Preparer Script](#data-preparer-script) section. The resulting annotat
 which is called "4Tzones Traffic Lights Augmented Dataset" can be downloaded using the link below and 
 is licensed under the 
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
-license.
+license.   
+
 |      \* & \*\*         |  4Tzones Traffic Lights Augmented Dataset  |  
 |------------------------|          :------------------------:        |  
 | Link                   | https://yadi.sk/d/q2Yyy9PO2SrMKQ           |  
