@@ -337,7 +337,7 @@ class YoloMarkDataset(Dataset):
     """
     Yolo_mark is a tool to label images with bounding boxes. It is very useful while annotating images yourself.
     Yolo_mark GitHub repo: https://github.com/AlexeyAB/Yolo_mark
-    4Tzones Udacity Traffic Lights dataset (dataset prepared by 4Tzones team): https://yadi.sk/d/iNuEbOEVOnmFaQ
+    4Tzones Traffic Lights Dataset (dataset prepared by 4Tzones team): https://yadi.sk/d/a1Kr8Wmg0zfa0A
     """
 
     def __init__(self):
@@ -882,7 +882,7 @@ Datasets:
     - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Test Lot):  
           https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing
     - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark.
-      4Tzones Udacity Traffic Lights dataset (Yolo_mark compatible): https://yadi.sk/d/iNuEbOEVOnmFaQ.
+      4Tzones Traffic Lights Dataset (Yolo_mark compatible): https://yadi.sk/d/a1Kr8Wmg0zfa0A.
 
 Label formats:
     - One row for one image (singular and ternary); 

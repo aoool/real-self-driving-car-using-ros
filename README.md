@@ -111,7 +111,7 @@ we:
 5. Moved extracted images to the newly created folder: `mv ~/.ros/frame*.jpg <folder>`
 
 
-#### Videos Creation
+#### Video Creation
 Images extracted from the ROS bags in the [Image Extraction](#image-extraction) step can be converted to videos
 following the instructions from 
 [How to export image and video data from a bag file](http://wiki.ros.org/rosbag/Tutorials/Exporting%20image%20and%20video%20data).  
@@ -143,7 +143,7 @@ The annotated dataset which is called "4Tzones Traffic Lights Dataset" is availa
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
 license.
 
-|      \* & \*\*         |  4Tzones Traffic Lights Dataset  |  
+|   \* & \*\* & \*\*\*   |  4Tzones Traffic Lights Dataset  |  
 |------------------------|    :------------------------:    |  
 | Link                   | https://yadi.sk/d/a1Kr8Wmg0zfa0A |
 | License                | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
@@ -154,14 +154,141 @@ license.
 | No TL # of Samples     | 1063                             |
 
 \* TL stands for "Traffic Lights" and # stands for "Number."  
+
 \*\* Notice that the total number of images contained in the ROS bags mentioned above is a little bigger. 
 We removed all images that are ambiguous, e.g., two traffic light bulbs are simultaneously ON, 
-or the image border partially cuts traffic light.
+or the image border partially cuts traffic light.  
+
+\*\*\* It will take about 3 hours of continuous work for one person to label images from all three ROS bags
+using [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark)
+given that he has a decent monitor and mouse.  
+
 
 #### Image Augmentation
-We tried different neural network models for traffic lights detection and classification. We first used the data
+We tried different neural networks for traffic lights detection and classification. We first used the data
 obtained during the [Image Annotation](#image-annotation) step. Models trained on these data did not perform well
-enough on the videos of similar track but from different ROS bags.
+enough on similar but previously unseen images. The [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A) 
+is just not good enough to enable the neural network generalization capability. 
+It is not balanced in different aspects. That is, the number of samples per class are not equal; the majority of
+red traffic light images are captured from the far distance; on all the traffic light images containing close 
+view of the traffic light, the traffic light position is biased to the left, etc. After several trial and error
+attempts it was obvious that we need to augment the dataset. Moreover, for different models we used different 
+training code, that is, for YOLO-tiny model we used code from the 
+[keras-yolo3](https://github.com/qqwweee/keras-yolo3) repository with minor modifications and for SSD models we used the 
+[TensorFlow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection).
+Both training scripts accept different labels format and we needed to convert 
+[Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) annotations to those other formats. To accomplish these
+image augmentation and label conversion tasks we have created a [`data_preparer.py`](utils/data_preparer.py).
+With this script, we easily augmented the [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A),
+which enabled the ability to generalise in our models. 
+More about the [`data_preparer.py`](utils/data_preparer.py) script is in 
+the [Data Preparer Script](#data-preparer-script) section. The resulting annotated augmented dataset,
+which is called "4Tzones Traffic Lights Augmented Dataset" can be downloaded using the link below and 
+is licensed under the 
+[Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/) 
+license.
+|      \* & \*\*         |  4Tzones Traffic Lights Augmented Dataset  |  
+|------------------------|          :------------------------:        |  
+| Link                   | https://yadi.sk/d/q2Yyy9PO2SrMKQ           |  
+| License                | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |  
+| Total TL # of Samples  | 11988                                      |  
+| Red TL # of Samples    | 1998                                       |  
+| Yellow TL # of Samples | 1998                                       |  
+| Green TL # of Samples  | 1998                                       |  
+| No TL # of Samples     | 5994                                       |  
+
+\* Notice that the number of samples of red, yellow, and green traffic lights are equal and the number of samples
+of images without traffic lights is a triple of that. Such a balancing of the dataset is suggested in the
+[How to improve object detection](https://github.com/AlexeyAB/darknet#how-to-improve-object-detection)
+section of README file from [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet) 
+repository by [AlexeyAB](https://github.com/AlexeyAB).  
+
+\** Notice that you cannot obtain the same level of "balancing" from the 
+[4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A) and the use of 
+[`data_preparer.py`](utils/data_preparer.py). The process of creating the 
+[4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ) involved several manual steps. 
+It can be roughly described as follows.
+Initially we had stored labeled images from different ROS bags in different folders. On each dataset, 
+we performed flipping, scaling, and balancing. For balancing the number of samples per class was set to about 2000.
+Then, the script randomly picked 1998 / 3 = 666 (5994 / 3 = 1998 for images without traffic lights) samples. 
+After all, we combined augmented images defived from all three ROS bags and got the 
+[4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ).
+
+
+#### Data Preparer Script
+For data augmentation and conversion of labels to different formats we have created a 
+[`data_preparer.py`](utils/data_preparer.py) script. It is quite sophisticated script that is capable of
+performing horizontal image flipping, image scaling, adjustment of brightness and contrast, 
+image resizing, dataset balancing, that is, making number of samples of red, yellow, and green lights equal to
+a specified value while creating triple of that for samples without traffic lights, random picking of the specified
+number of samples, and conversion of image annotations (bounding boxes) to several different label formats, such as
+a format used in the [Bosh Small Traffic Lights Dataset](https://hci.iwr.uni-heidelberg.de/node/6132),
+a format produced by [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) tool, 
+a format required by the [keras-yolo3](https://github.com/qqwweee/keras-yolo3),
+a format of labels of the 
+[Vatsal Srivastava's Traffic Lights Dataset](https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing).
+The `data_preparer.py --help` command produces a help-message that presents the comprehensive instructions on how to use
+the script. We strongly recommend to read it before feeding your data to the script.
+```
+usage: data_preparer.py [-h] --dataset
+                        {bosch_small_traffic_lights,vatsal_srivastava_traffic_lights,yolo_mark}
+                        [--fliplr] [--scale] [--balance [B]] [--pick N]
+                        [--resize H W] --input-dir DIR --output-dir DIR
+                        [--continue-output-dir] [--draw-bounding-boxes]
+
+This script is capable of working with several datasets from the list below. 
+It applies the requested image augmentation to the images from the provided dataset
+and converts labels to several formats specified below. It also balances dataset to the following
+form: red == yellow == green == nolight/3.
+
+Datasets:
+    - Bosh Small Traffic Lights Dataset: https://hci.iwr.uni-heidelberg.de/node/6132
+    - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Test Lot):  
+          https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing
+    - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark.
+      4Tzones Traffic Lights Dataset (Yolo_mark compatible): https://yadi.sk/d/a1Kr8Wmg0zfa0A.
+
+Label formats:
+    - One row for one image (singular and ternary); 
+      Useful for https://github.com/qqwweee/keras-yolo3;
+      Row format: image_file_path box1 box2 ... boxN; 
+      Box format: x_min,y_min,x_max,y_max,class_id (no space).
+    - Vatsal Srivastava's yaml format (only ternary). Example:
+      - annotations:
+        - {class: Green, x_width: 17, xmin: 298, y_height: 49, ymin: 153}
+        class: image
+        filename: ./images/a0a05c4e-b2be-4a85-aebd-93f0e78ff3b7.jpg
+      - annotations:
+        - {class: Yellow, x_width: 15, xmin: 364, y_height: 43, ymin: 156}
+        - {class: Yellow, x_width: 15, xmin: 151, y_height: 52, ymin: 100}
+        class: image
+        filename: ./images/ccbd292c-89cb-4e8b-a671-47b57ebb672b.jpg
+    - Bosh Small Traffic Lights yaml format (only ternary). Example:
+      - boxes:
+        - {label: Red, occluded: false, x_max: 640, x_min: 633, y_max: 355, y_min: 344}
+        - {label: Yellow, occluded: false, x_max: 659, x_min: 651, y_max: 366, y_min: 353}
+        path: ./images/ccbd292c-89cb-4e8b-a671-47b57ebb672b.png
+    - Yolo_mark format. One file per image. Example: image_name.jpg -> image_name.txt. Content:
+      <object-class> <x_center> <y_center> <width> <height>
+      <object-class> <x_center> <y_center> <width> <height>
+      ...
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dataset {bosch_small_traffic_lights,vatsal_srivastava_traffic_lights,yolo_mark}
+                        dataset name
+  --fliplr              apply imgaug.Fliplr function (flip horizontally) to all images; dataset size will x2 in size
+  --scale               apply imgaug.Affine(scale=0.7) function (scale image, keeping original image shape); dataset size will x2 in size
+  --balance [B]         balance dataset, so that there is an equal number of representatives of each class; when no argument is provided, the number of elements per RED, YELLOW, GREEN classes are made equal to the maximum number of elements per class after the first processing stage, i.e., before balancing; if B argument is provided, the number of samples per RED, YELLOW, and GREEN classes are made equal to B; number of instances for NO_LIGHT class is made equal to 3*B
+  --pick N              picks N images from the original dataset in accordance with uniform distribution and ignores other images
+  --resize H W          resize all images to the specified height and width; aspect ratio is not preserved
+  --input-dir DIR       dataset's root directory
+  --output-dir DIR      directory to store prepared images and labels
+  --continue-output-dir
+                        expand existing output directory with new image-label entries
+  --draw-bounding-boxes
+                        draw bounding boxes on the output images; do not use it while preparing data for training
+```
 
     
 ### Other approaches for traffic light detection
