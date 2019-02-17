@@ -157,7 +157,7 @@ license.
 
 \*\* Notice that the total number of images contained in the ROS bags mentioned above is a little bigger. 
 We removed all images that are ambiguous, e.g., two traffic light bulbs are simultaneously ON, 
-or the image border partially cuts traffic light.  
+or the image border partially cuts a traffic light.  
 
 \*\*\* It takes about 3 hours of continuous work for one person to label images from all three ROS bags
 using [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark)
@@ -176,7 +176,8 @@ After several trial and error attempts, it was obvious that we need to augment t
 Moreover, for different models we used different 
 training code, that is, for YOLO-tiny model we used code from the 
 [keras-yolo3](https://github.com/qqwweee/keras-yolo3) repository with minor modifications and for SSD models we used the 
-[TensorFlow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection).
+[TensorFlow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection)
+repository.
 Both training scripts accept different labels format, and we needed to convert 
 [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) annotations to those other formats. To accomplish these
 image augmentation and label conversion tasks we have created a [`data_preparer.py`](utils/data_preparer.py).
@@ -198,8 +199,9 @@ license.
 | Green TL # of Samples  | 1998                                       |  
 | No TL # of Samples     | 5994                                       |  
 
-\* Notice that the number of samples of red, yellow, and green traffic lights is equal to each other and the number of 
-samples of images without traffic lights is a triple of that. Such a balancing of the dataset is suggested in the
+\* Notice that the number of samples of red, yellow, and green traffic lights is equal to each other 
+and the number of samples of images without traffic lights is a triple of that. 
+Such a balancing of the dataset is suggested in the
 [How to improve object detection](https://github.com/AlexeyAB/darknet#how-to-improve-object-detection)
 section of README file from [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet) 
 repository by [AlexeyAB](https://github.com/AlexeyAB).  
@@ -218,7 +220,7 @@ After all, we combined augmented images defived from all three ROS bags and got 
 
 #### Data Preparer Script
 For data augmentation and conversion of labels to different formats we have created a 
-[`data_preparer.py`](utils/data_preparer.py) script. It is quite sophisticated script that is capable of
+[`data_preparer.py`](utils/data_preparer.py) script. It is a quite sophisticated script that is capable of
 performing horizontal image flipping, image scaling, adjustment of brightness and contrast, 
 image resizing, dataset balancing, that is, making number of samples of red, yellow, and green lights equal to
 a specified value while creating triple of that for samples without traffic lights, random picking of the specified
@@ -228,7 +230,8 @@ a format produced by [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) tool,
 a format required by the [keras-yolo3](https://github.com/qqwweee/keras-yolo3),
 a format of labels of the 
 [Vatsal Srivastava's Traffic Lights Dataset](https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing).
-The `data_preparer.py --help` command produces a help-message that presents the comprehensive instructions on how to use
+The `data_preparer.py --help` command produces a help-message that 
+presents the comprehensive instructions on how to use
 the script. We strongly recommend to read it before feeding your data to the script.
 ```
 usage: data_preparer.py [-h] --dataset
