@@ -168,9 +168,9 @@ given that he has a decent monitor and mouse.
 We tried different neural networks for traffic lights detection and classification. We first used the data
 obtained during the [Image Annotation](#image-annotation) step. Models trained on these data did not perform well
 enough on similar but previously unseen images. The [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A) 
-is just not good enough to enable the neural network generalization capability. 
+is just not good enough to enable the neural network to generalize. 
 The dataset is unbalanced in different aspects. That is, the number of samples per class is not equal to each other; 
-the majority of red traffic light images are captured from the far distance; on all the traffic light images 
+the majority of red traffic light images are captured from far distances; in all the traffic light images 
 containing a close view of the traffic light, the traffic light position is biased to the left, and in other aspects. 
 After several trial and error attempts, it was obvious that we need to augment the dataset. 
 Moreover, for different models we used different 
@@ -182,7 +182,7 @@ Both training scripts accept different labels format, and we needed to convert
 [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) annotations to those other formats. To accomplish these
 image augmentation and label conversion tasks we have created a [`data_preparer.py`](utils/data_preparer.py).
 With this script, we easily augmented the [4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A),
-which enabled the ability to generalize in our models. 
+which dramatically increased the models' ability to generalize. 
 More about the [`data_preparer.py`](utils/data_preparer.py) script is in 
 the [Data Preparer Script](#data-preparer-script) section. The resulting annotated augmented dataset,
 which is called "4Tzones Traffic Lights Augmented Dataset" can be downloaded using the link below and 
@@ -201,21 +201,23 @@ license.
 | No TL # of Samples     | 5994                                       |  
 
 \* Notice that the number of samples of red, yellow, and green traffic lights is equal to each other 
-and the number of samples of images without traffic lights is a triple of that. 
+and the number of samples of images without traffic lights is triple that. 
 Such a balancing of the dataset is suggested in the
 [How to improve object detection](https://github.com/AlexeyAB/darknet#how-to-improve-object-detection)
 section of README file from [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet) 
 repository by [AlexeyAB](https://github.com/AlexeyAB).  
 
-\** Notice that you cannot obtain the same level of "balancing" from the 
-[4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A) and the use of 
-[`data_preparer.py`](utils/data_preparer.py). The process of creating the 
-[4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ) involved several manual steps. 
-It can be roughly described as follows.
+\** Notice that you cannot obtain the same level of "balancing" by only using 
+[`data_preparer.py`](utils/data_preparer.py) on the
+[4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A). The process of creating the 
+[4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ) involved several manual steps, 
+that can be described as follows.
 Initially we had stored labeled images from different ROS bags in different folders. On each dataset, 
-we performed flipping, scaling, and balancing. For balancing the number of samples per class was set to about 2000.
+we performed flipping, scaling, and balancing. For balancing the number of samples per class was set to about 2000 
+(the [`data_preparer.py`](utils/data_preparer.py) script has a `--balance N` option which commands the script to
+create N sample images per each class though augmentation).
 Then, the script randomly picked 1998 / 3 = 666 (5994 / 3 = 1998 for images without traffic lights) samples. 
-After all, we combined augmented images defived from all three ROS bags and got the 
+After all, we combined augmented images defived from all three ROS bags into the 
 [4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ).
 
 
@@ -224,16 +226,16 @@ For data augmentation and conversion of labels to different formats we have crea
 [`data_preparer.py`](utils/data_preparer.py) script. It is a quite sophisticated script that is capable of
 performing horizontal image flipping, image scaling, adjustment of brightness and contrast, 
 image resizing, dataset balancing, that is, making number of samples of red, yellow, and green lights equal to
-a specified value while creating triple of that for samples without traffic lights, random picking of the specified
+a specified value while creating triple that for samples without traffic lights, random picking of the specified
 number of samples, and conversion of image annotations (bounding boxes) to several different label formats, such as
 a format used in the [Bosh Small Traffic Lights Dataset](https://hci.iwr.uni-heidelberg.de/node/6132),
 a format produced by [Yolo_mark](https://github.com/AlexeyAB/Yolo_mark) tool, 
-a format required by the [keras-yolo3](https://github.com/qqwweee/keras-yolo3),
-a format of labels of the 
+a format required by [keras-yolo3](https://github.com/qqwweee/keras-yolo3),
+a format used in the 
 [Vatsal Srivastava's Traffic Lights Dataset](https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing).
 The `data_preparer.py --help` command produces a help-message that 
-presents the comprehensive instructions on how to use
-the script. We strongly recommend to read it before feeding your data to the script.
+presents comprehensive instructions on how to use
+the script. We strongly recommend reading it before feeding your data to the script.
 ```
 usage: data_preparer.py [-h] --dataset
                         {bosch_small_traffic_lights,vatsal_srivastava_traffic_lights,yolo_mark}
@@ -305,7 +307,7 @@ optional arguments:
     
 ### Other approaches for traffic light detection
 
-We experimented with few other (unsuccessful) approaches to detect traffic light. 
+We experimented with few other (unsuccessful) approaches to detect traffic lights. 
 
 #### Idea
 
