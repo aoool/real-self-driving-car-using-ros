@@ -216,7 +216,7 @@ Initially, we had stored labeled images from different ROS bags in different fol
 On each dataset, we performed flipping, scaling, and balancing. 
 For balancing, the number of samples per class was set to about 2000 
 (the [`data_preparer.py`](utils/data_preparer.py) script has a `--balance N` option which commands the script 
-to create N sample images per each class though augmentation and 3*N samples for images without traffic lights).
+to create N sample images per class through augmentation and 3*N samples for images without traffic lights).
 It was needed to balance the number of samples among the datasets. That is, suppose that we have N1 red traffic
 light samples from the first ROS bag, N2, and N3 from the second and third ROS bags. If we combine these three
 datasets and then balance the combined dataset with samples per class parameter set to 1998 (i.e. `--balance 1998`), 
