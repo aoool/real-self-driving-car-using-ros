@@ -207,17 +207,28 @@ Such a balancing of the dataset is suggested in the
 section of README file from [https://github.com/AlexeyAB/darknet](https://github.com/AlexeyAB/darknet) 
 repository by [AlexeyAB](https://github.com/AlexeyAB).  
 
-\** Notice that you cannot obtain the same level of "balancing" by only using 
-[`data_preparer.py`](utils/data_preparer.py) on the
-[4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A). The process of creating the 
-[4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ) involved several manual steps, 
-that can be described as follows.
-Initially we had stored labeled images from different ROS bags in different folders. On each dataset, 
-we performed flipping, scaling, and balancing. For balancing the number of samples per class was set to about 2000 
-(the [`data_preparer.py`](utils/data_preparer.py) script has a `--balance N` option which commands the script to
-create N sample images per each class though augmentation).
-Then, the script randomly picked 1998 / 3 = 666 (5994 / 3 = 1998 for images without traffic lights) samples. 
-After all, we combined augmented images defived from all three ROS bags into the 
+\** Notice that you cannot obtain the same level of "balancing" by only using the 
+[`data_preparer.py`](utils/data_preparer.py) script on the 
+[4Tzones Traffic Lights Dataset](https://yadi.sk/d/a1Kr8Wmg0zfa0A). 
+The process of creating the [4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ) 
+involved several manual steps, that can be described as follows.
+Initially, we had stored labeled images from different ROS bags in different folders. 
+On each dataset, we performed flipping, scaling, and balancing. 
+For balancing, the number of samples per class was set to about 2000 
+(the [`data_preparer.py`](utils/data_preparer.py) script has a `--balance N` option which commands the script 
+to create N sample images per each class though augmentation and 3*N samples for images without traffic lights).
+It was needed to balance the number of samples among the datasets. That is, suppose that we have N1 red traffic
+light samples from the first ROS bag, N2, and N3 from the second and third ROS bags. If we combine these three
+datasets and then balance the combined dataset with samples per class parameter set to 1998 (i.e. `--balance 1998`), 
+we would get 1998 red traffic light images with a proportion of images from different datasets equal to N1:N2:N3. 
+To avoid such an uneven proportion, we would need to generate a sufficient amount of red traffic light images for 
+each dataset (2000 samples, for example) and then pick 666 images from these 2000 generated samples 
+in accordance with the uniform distribution. Then, combining 666 images from each of the three datasets, 
+we would get 1998 samples of red traffic light images in the final dataset with a proportion of the presence of 
+images from each of the three initial datasets equal to 666:666:666. 
+For images without traffic lights, this proportion would be equal to 1998:1998:1998. 
+So, we performed such a "fair" balancing among the three datasets for red, yellow, green, and images without 
+traffic lights and then combined them into one dataset called the 
 [4Tzones Traffic Lights Augmented Dataset](https://yadi.sk/d/q2Yyy9PO2SrMKQ).
 
 
