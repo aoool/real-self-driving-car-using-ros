@@ -84,6 +84,7 @@ and the final training loss was around 2.x.
 even when the car is very far away from the traffic light:
 
 Here are the results of our trained model.
+
 ![simulator inference 1](report/sim_1.png)
 ![simulator inference 2](report/sim_2.png)
 
@@ -127,6 +128,7 @@ and the final training loss was around 1.x.
 the model completely fails specially when the traffic light is very close to the camera.
 
 Here are the results of our trained model.
+
 ![real inference 1](report/real_1.png)
 ![real inference 2](report/real_2.png)
 
