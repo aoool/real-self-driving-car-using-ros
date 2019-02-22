@@ -32,7 +32,8 @@ the color of nearest upcoming traffic light and publishes it to /waypoint_update
 the car to speed up or slow down accordingly. Because the real world images differ substantially from simulator images, 
 we tried out different approaches for both. The approaches which worked best are described below.
 
-### Simulator (Highway) --- OpenCV Approach
+### OpenCV Approach
+#### Simulator (Highway)
 In this approach we used the basic features of OpenCV to solve the problem, the steps are described below.
 * Image is transformed to HSV colorspace, as the color feature can be extracted easily in this colorspace.
 * Mask is applied to isolate red pixels in the image. 
@@ -41,21 +42,21 @@ In this approach we used the basic features of OpenCV to solve the problem, the 
 polygon detection is performed and checked if the the number of sides is more than minimum required closed loop polygon. 
 * If all the above conditions satisfy there is a red sign in the image. 
 
-#### Pros
+##### Pros
 * This approach is very fast.
 * Uses minimum resources.
 
-#### Cons
+##### Cons
 * This is not robust enough, the thresholds need to be adjusted always.
 * Doesnt work properly on real world data as there is lot of noise. 
 
-## SSD Approach (Single Shot Detection)
+### SSD Approach (Single Shot Detection)
 We need to solve both object detection - where in the image is the object, 
 and object classification --- given detections on an image, classify traffic lights. 
 While there are teams who approached it as 2 separate problems to be solved, 
 recent advancements in Deep Learning has developed models that attempt to solve both at once.
 For example, SSD (Single Shot Multibox Detection) and YOLO (You Only Look Once).
-### Simulator (Highway) --- SSD Approach
+#### Simulator (Highway)
 Here we experimented with Tensorflow Object Detection API, using pretrained models on COCO dataset, such as:
 "ssd_inception_v2_coco" and "ssd_mobilenet_v2_coco":
 * Testing the coco pretrained models without retraining on simulator images didn't lead to any success, 
@@ -88,16 +89,16 @@ Here are the results of our trained model.
 ![simulator inference 1](report/sim_1.png)
 ![simulator inference 2](report/sim_2.png)
 
-#### Pros
+##### Pros
 * This approach is very accurate.
 * It can detect all 3 colors; Red, Yellow & Green, with great confidence.
 * It can pinpoint the exact position and size of the lights, which can be further utilized
 for accurately calculating the stopping line position.
 
-#### Cons
+##### Cons
 * It's slower than OpenCV method.
 
-### Real World (Test Lot) --- SSD Approach
+#### Real World (Test Lot)
 * We tested the pretrained models without retraining, on real world images from the ROS bags
 provided by Udacity, which led to some success, since COCO dataset already has a Traffic Light
 class (No.10), however it was a limited success since the ROS bags images had unusual lighting;
@@ -132,18 +133,19 @@ Here are the results of our trained model.
 ![real inference 1](report/real_1.png)
 ![real inference 2](report/real_2.png)
 
-#### Pros
+##### Pros
 * This approach is accurate in most cases.
 * It can detect all 3 colors; Red, Yellow & Green, with great confidence.
 * It can pinpoint the exact position and size of the lights, which can be further utilized 
 for accurately calculating the stopping line position.
 
-#### Cons
+##### Cons
 * It's not very fast, the FPS when running the ROS bag was averaging 15 FPS.
 * It requires a very large dataset including images of different lighting conditions, 
 different distances from the lights, etc, in order to be reliable.
 
-### Real World (Test Lot) --- YOLOv3-tiny (You Only Look Once)
+### YOLOv3-tiny (You Only Look Once)
+#### Real World (Test Lot) --- 
 We used this approach for real world.
 TODO:write about it
 
