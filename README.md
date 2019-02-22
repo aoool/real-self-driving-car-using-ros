@@ -145,7 +145,7 @@ for accurately calculating the stopping line position.
 different distances from the lights, etc, in order to be reliable.
 
 ### YOLOv3-tiny (You Only Look Once)
-#### Real World (Test Lot) --- 
+#### Real World (Test Lot)
 We used this approach for real world.
 TODO:write about it
 
