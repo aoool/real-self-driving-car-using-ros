@@ -33,4 +33,4 @@ VOLUME ["/capstone"]
 VOLUME ["/root/.ros/log/"]
 WORKDIR /capstone/ros
 
-ENTRYPOINT ["bash", "../entrypoint.sh"]
+CMD ["bash", "../entrypoint.sh"]
