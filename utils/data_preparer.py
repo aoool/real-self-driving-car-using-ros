@@ -881,7 +881,7 @@ Datasets:
     - Bosh Small Traffic Lights Dataset: https://hci.iwr.uni-heidelberg.de/node/6132
     - Vatsal Srivastava's Traffic Lights Dataset (Simulator & Test Lot):  
           https://drive.google.com/file/d/0B-Eiyn-CUQtxdUZWMkFfQzdObUE/view?usp=sharing
-    - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark.
+    - Any Traffic Lights Dataset Labeled with Yolo_mark: https://github.com/AlexeyAB/Yolo_mark
       4Tzones Traffic Lights Dataset (Yolo_mark compatible): https://yadi.sk/d/a1Kr8Wmg0zfa0A.
 
 Label formats:
